@@ -160,12 +160,20 @@ h3{font-size:clamp(19px,1.7vw,23px);font-weight:600;}
   -webkit-text-fill-color:transparent;color:transparent;
   text-shadow:none;
   animation:shimmer 5s linear infinite;}
-/* Static brand-blue gradient glyph (no shimmer) - used for "Practical AI". */
+/* Animated brand-blue gradient glyph - used for "Practical AI". A colorful
+   blue gradient that pans continuously (distinct from .em's dark shimmer). */
 .grad{font-style:normal;font-weight:700;
-  background:linear-gradient(120deg,#0037C9 0%,#1B6BFF 45%,#5FB1FF 100%);
+  background:linear-gradient(120deg,
+    #0037C9 0%,#1B6BFF 25%,#5FB1FF 50%,#1B6BFF 75%,#0037C9 100%);
+  background-size:220% 100%;
   -webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
-  text-shadow:none;}
+  text-shadow:none;
+  animation:gradpan 6s linear infinite;}
+@keyframes gradpan{
+  0%   {background-position:0% 50%;}
+  100% {background-position:200% 50%;}
+}
 @keyframes shimmer{
   0%   {background-position:-30% 50%;}
   100% {background-position:130% 50%;}
