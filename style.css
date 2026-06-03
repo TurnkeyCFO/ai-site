@@ -160,6 +160,12 @@ h3{font-size:clamp(19px,1.7vw,23px);font-weight:600;}
   -webkit-text-fill-color:transparent;color:transparent;
   text-shadow:none;
   animation:shimmer 5s linear infinite;}
+/* Static brand-blue gradient glyph (no shimmer) - used for "Practical AI". */
+.grad{font-style:normal;font-weight:700;
+  background:linear-gradient(120deg,#0037C9 0%,#1B6BFF 45%,#5FB1FF 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  text-shadow:none;}
 @keyframes shimmer{
   0%   {background-position:-30% 50%;}
   100% {background-position:130% 50%;}
