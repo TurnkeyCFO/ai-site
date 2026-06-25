@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Microsoft Clarity (heatmaps + session replay) -->
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xaten6x8r0");
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reduce Missed Calls at Your Service Business: The Math</title>
+<meta name="description" content="A worked example of how to reduce missed calls at a service business: where calls leak after-hours, at lunch, and on the jobsite, and what each fix recovers.">
+<link rel="canonical" href="https://turnkeyai.org/blog/reduce-missed-calls-service-business/">
+<meta name="author" content="Ricky West">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Reduce Missed Calls at Your Service Business: The Math">
+<meta property="og:description" content="A worked example of how to reduce missed calls at a service business: where calls leak after-hours, at lunch, and on the jobsite, and what each fix recovers.">
+<meta property="og:url" content="https://turnkeyai.org/blog/reduce-missed-calls-service-business/">
+<meta property="og:site_name" content="Turnkey AI">
+<meta property="article:published_time" content="2026-06-25">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Reduce Missed Calls at Your Service Business: The Math">
+<meta name="twitter:description" content="A worked example of how to reduce missed calls at a service business: where calls leak after-hours, at lunch, and on the jobsite, and what each fix recovers.">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/blog/blog-styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "headline": "How to Reduce Missed Calls Service Business Owners Lose: The Real Math for HVAC, Plumbing, and Electrical",
+      "description": "A worked example of how to reduce missed calls at a service business: where calls leak after-hours, at lunch, and on the jobsite, and what each fix recovers.",
+      "datePublished": "2026-06-25",
+      "dateModified": "2026-06-25",
+      "inLanguage": "en-US",
+      "keywords": "reduce missed calls service business",
+      "author": {
+        "@type": "Person",
+        "name": "Ricky West",
+        "jobTitle": "Founder, Turnkey Services",
+        "url": "https://turnkeyai.org/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Turnkey AI",
+        "url": "https://turnkeyai.org/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://turnkeyai.org/assets/tkai-logo.png"
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://turnkeyai.org/blog/reduce-missed-calls-service-business/"
+      }
+    },
+    {
+      "@type": "Organization",
+      "name": "Turnkey AI",
+      "url": "https://turnkeyai.org/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://turnkeyai.org/assets/tkai-logo.png"
+      },
+      "description": "Practical AI tools and automation for service businesses \u2014 HVAC, plumbing, electrical, roofing, and more."
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Will customers know they are talking to a machine after hours?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Modern AI answering identifies itself and sounds natural, but the goal is not to fool anyone. It captures the address, the problem, and whether it is an emergency, then books or routes. Most homeowners with a flooded basement at 11 p.m. care that someone responded, not who."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it legal to automatically text a missed caller back?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A transactional reply to someone who just called you is generally fine. Keep it about their request, include an opt-out, and avoid promotional language. Automated marketing texts to numbers without consent are where the TCPA and FCC robocall rules bite, so keep the auto-text a response, not a campaign."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can an AI actually book an emergency, or just take a message?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Good setups do both: they triage true emergencies straight to your on-call tech and book non-urgent calls into open slots on your calendar. The dispatcher still decides priority; the tool just makes sure the call exists to be prioritized."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "I have one office person \u2014 what is the cheapest first move?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Overflow routing in your phone system's admin panel, plus voicemail-to-text. Both attack the daytime lunch-and-busy leak for very little effort before you add an after-hours answering layer."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Won't I lose the personal touch that wins jobs in the trades?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The personal touch happens when your tech is at the kitchen table giving an honest diagnosis. It does not happen at a phone that rings out. Catching the call is what earns the chance to be personal in the first place."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="tk-header">
+  <div class="tk-header-inner">
+    <a class="tk-logo" href="/">
+      <img src="data:image/png;base64,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" alt="Turnkey AI">
+    </a>
+    <nav class="tk-nav"><a class="tk-nav-cta" href="https://calendly.com/ricky-turnkeycfo/15min-intro-call">Book a Call</a></nav>
+  </div>
+</header>
+
+<main class="tk-article">
+  <div class="tk-eyebrow">AI receptionist &amp; missed call recovery</div>
+  <h1>How to Reduce Missed Calls Service Business Owners Lose: The Real Math for HVAC, Plumbing, and Electrical</h1>
+  <div class="tk-byline">
+    By <strong>Ricky West</strong> &middot; Founder, Turnkey Services &middot; June 25, 2026 &middot; 11 min read
+  </div>
+
+  <article class="tk-body">
+<p>Most owners I talk to treat a missed call as a small thing. A blip. Someone will call back. Learning to reduce missed calls service business owners write off as inevitable is one of the highest-return moves you can make this quarter, so before we talk tools, let me show you the actual money sitting in your missed-call log. The math is almost always uglier than the gut estimate. I am going to build one example with real numbers and show every step, so you can swap in your own figures and see your own leak.</p>
+
+<p>I will use a blended HVAC-and-plumbing shop doing about <strong>$2 million</strong> a year. The same arithmetic works for an electrical company or a roofer; only the ticket sizes shift. Follow the model, not the exact digits. If you want the wider context on where this fits before we dig in, I keep a plain-language overview in <a href="/blog/ai-for-service-business-owners/">AI for service business owners</a>.</p>
+
+<h2>Step one: count the calls, not the voicemails</h2>
+
+<p>Our example shop takes roughly <strong>120 inbound calls a week</strong> on the main line. That is jobs, existing customers, suppliers, and spam all mixed together. From their call-tracking report, about <strong>30% go unanswered</strong> in the moment. That is 36 missed calls a week.</p>
+
+<p>Here is the first trap. The owner looked at his voicemail box and saw maybe eight messages a week, so he assumed eight missed opportunities. But in the trades, people do not leave voicemails when the AC is dead and it is 96 degrees. They hang up and dial the next company on the map. The 36 is the real number; the eight is just the polite minority who bother to leave a message.</p>
+
+<p>Now we filter for actual opportunity. Not every missed call is a new job. Strip out vendors, robocalls, and existing customers who will reach you anyway, and say <strong>55%</strong> of those misses are genuine new-job opportunities:</p>
+
+<ul>
+<li>36 missed calls/week &times; 55% = <strong>~20 real opportunity misses per week</strong></li>
+</ul>
+
+<p>If you have never pulled this report, that is the single most valuable hour you will spend this month. Most VoIP and call-tracking dashboards export a call log with timestamps and answered/unanswered flags in two clicks. You are not guessing anymore; you are reading the meter.</p>
+
+<h2>Step two: where the 20 actually leak</h2>
+
+<p>This is the part that decides which fix you buy, so do not skip it. Pull a week of call records with timestamps and sort the 20 into buckets. For our example shop it broke down like this:</p>
+
+<ul>
+<li><strong>After-hours (nights and weekends): 9 calls.</strong> Emergency trades skew late. A compressor that quits at 7 p.m. or a main that backs up Saturday morning is a same-night decision, and the homeowner is calling whoever picks up.</li>
+<li><strong>Lunch and shift-change dead zone: 5 calls.</strong> One person works the front desk. From roughly 11:30 to 1 she is at lunch or buried, and that window overlaps with homeowners calling on their own break.</li>
+<li><strong>Everyone on a jobsite / already on the other line: 6 calls.</strong> When the install crew and the dispatcher are all on calls or under a sink, the second and third ringers roll over.</li>
+</ul>
+
+<p>Notice that no single fix covers all three. That is the whole point of diagnosing before buying. An owner who skips this step usually buys one tool, aims it at the wrong bucket, and concludes "this stuff does not work" when the truth is he pointed a night-shift solution at a lunch-hour problem.</p>
+
+<h2>Step three: turn missed calls into lost dollars</h2>
+
+<p>Two more inputs and we can size the leak. First, how many missed callers never come back? In the trades, figure <strong>70%</strong> of unanswered new callers do not leave a voicemail and do not call again; they book the next contractor. Second, your booking rate on calls you do answer; say <strong>45%</strong> of genuine opportunity calls become jobs. And a blended job value: mixing $250 service calls with the occasional $9,000 changeout, our shop averages about $500 per booked job, weighted conservatively toward the repair end.</p>
+
+<p>Run it:</p>
+
+<ul>
+<li>20 opportunity misses/week &times; 70% gone for good = <strong>14 lost contacts/week</strong></li>
+<li>14 &times; 45% booking rate = <strong>~6.3 lost jobs/week</strong></li>
+<li>6.3 &times; $500 blended value = <strong>~$3,150 a week</strong></li>
+<li>&times; 50 working weeks = <strong>~$157,000 a year</strong></li>
+</ul>
+
+<p>That is roughly <strong>8% of a $2M business</strong> walking out the door because the phone rang at an inconvenient moment. And I weighted the job value low on purpose. If even one of those weekly misses was an emergency after-hours changeout instead of a $250 repair, the annual figure jumps fast. For context on how much late-night and weekend demand these trades actually carry, the U.S. Bureau of Labor Statistics notes that <a href="https://www.bls.gov/ooh/installation-maintenance-and-repair/heating-air-conditioning-and-refrigeration-mechanics-and-installers.htm" rel="nofollow">HVAC technicians routinely work evenings and weekends during peak demand</a> precisely because heating and cooling failures do not wait for business hours.</p>
+
+<h2>Step four: match each leak to the right fix</h2>
+
+<p>Now the diagnosis pays off. Three different leaks, three different tools, and they take different amounts of effort to stand up.</p>
+
+<h3>Leak 1 &mdash; lunch and the second-ringer (5 + part of 6 calls): voicemail-to-text and overflow routing</h3>
+
+<p>The cheapest wins are the daytime ones, because a human is nearby; they just could not grab the line. Two changes:</p>
+
+<ul>
+<li><strong>Voicemail-to-text.</strong> When a call does hit voicemail, the message is transcribed and pushed to a phone the owner or office manager actually watches, so a callback goes out in minutes instead of after the box is checked at 5 p.m.</li>
+<li><strong>Overflow (hunt-group) routing.</strong> The line rings the front desk, then rolls to a second mobile, then a third, before it ever reaches voicemail. Most VoIP phone systems do this for free in the admin settings. This alone recovers a good slice of the lunch and on-the-other-line bucket.</li>
+</ul>
+
+<p>Realistically these two recover maybe <strong>half of the daytime 8 calls (lunch + busy)</strong> &mdash; call it 4 of the 20 back. That is on the order of $31,000 a year recovered with settings changes and a transcription add-on. If you want the broader build-out of catching and working those daytime leads automatically, I walk through it in our piece on <a href="/blog/automate-lead-follow-up-small-business/">automating lead follow-up with a 5-minute response playbook</a>.</p>
+
+<h3>Leak 2 &mdash; the after-hours 9: AI answering and booking</h3>
+
+<p>This is your biggest single bucket and the one a human team will never cover without paying for nights and weekends. An AI answering setup picks up on the first or second ring, around the clock, identifies whether it is an emergency, captures the address and the problem, and either books a slot on your calendar or hands an emergency straight to your on-call tech. It does not replace your dispatcher's judgment on which jobs to prioritize; it makes sure the call is captured and triaged instead of lost.</p>
+
+<p>Recover even <strong>two-thirds of those 9 after-hours calls</strong> and you are looking at roughly 6 contacts/week back into the pipeline, which at the same booking and value math is on the order of <strong>$67,000 a year</strong>. I broke down the real economics of these systems, including when they do and do not pay off, in <a href="/blog/ai-answering-service-small-business-cost-2/">the real math on AI answering services for small service businesses</a>, and the nuts and bolts of how the booking flow works in <a href="/blog/ai-receptionist-for-service-business-2/">how an AI receptionist stops contractors from losing jobs to missed calls</a>.</p>
+
+<h3>Leak 3 &mdash; the jobsite calls: routing plus AI as backstop</h3>
+
+<p>The jobsite leak is structural. Your techs cannot answer with their hands in a panel or under a sink, and you would not want them to. The fix is layered: overflow routing catches the call when someone in the office is free, and the AI answering layer is the backstop that catches it when no one is. The same tool that covers nights covers the 2 p.m. moment when the whole crew is unreachable.</p>
+
+<h2>Step five: re-run the math after the fixes</h2>
+
+<p>Stack the recoveries conservatively:</p>
+
+<ul>
+<li>Daytime routing + voicemail-to-text: ~4 calls/week back</li>
+<li>AI answering on the after-hours and jobsite buckets: ~7 calls/week back</li>
+<li><strong>Total: ~11 of the 20 opportunity misses recovered each week</strong></li>
+</ul>
+
+<p>At a 45% booking rate and $500 blended value, 11 recovered contacts is about <strong>~5 booked jobs a week</strong>, or roughly <strong>$124,000 a year</strong> pulled back from the leak &mdash; without hiring a single person or paying for a night shift. You will not catch all 20; some callers truly only want a human and will not engage with anything else. But going from catching zero of the missed 20 to catching 11 is the difference that shows up in the bank.</p>
+
+<p>One compliance note before you flip on auto-texting: if your system fires an automatic text back to a missed caller, keep it transactional ("Sorry we missed you &mdash; can we help with your AC?") and include opt-out language. Promotional blasts to numbers you have no consent for run into the <a href="https://www.fcc.gov/general/telemarketing-and-robocalls" rel="nofollow">FCC's telemarketing and robocall rules</a>, and the TCPA penalties are steep. A reply to someone who just called you is generally fine; a marketing campaign is a different animal.</p>
+
+<h2>How the numbers shift for plumbing and electrical</h2>
+
+<p>The model is the same; the inputs move. A plumbing shop usually carries an even heavier after-hours bucket, because burst pipes and sewage backups are the definition of a same-night decision, and the emotional urgency means callers will not wait for a callback. If your after-hours share is closer to half your misses, the AI answering layer carries more of your recovery, and the daytime routing carries less. The <a href="/industries/plumbing/">approach for plumbing companies</a> leans hard on capture-and-triage for exactly that reason.</p>
+
+<p>Electrical shops tend to split differently. Fewer true 2 a.m. emergencies, but a higher blended ticket once panel upgrades and rewires are in the mix, so each missed opportunity is worth more even if the raw count is lower. That changes the order of operations: an electrical owner often gets the bigger dollar recovery from making sure no quote-stage call goes unanswered during business hours, which is more of a daytime-routing and follow-up problem than a night-shift one. Our <a href="/industries/electrical/">guidance for electrical contractors</a> walks through where the value concentrates. Whatever the trade, do not borrow my percentages &mdash; pull your own log and let the buckets tell you where to spend first.</p>
+
+<h2>How to run this on your own numbers this week</h2>
+
+<ol>
+<li>Pull one week of call records with timestamps from your phone provider or call-tracking tool.</li>
+<li>Count total calls and unanswered calls. Do not trust the voicemail box.</li>
+<li>Estimate the share that are genuine new-job opportunities (50&ndash;60% is typical).</li>
+<li>Sort the misses into after-hours, lunch/busy, and jobsite buckets by timestamp.</li>
+<li>Apply your real booking rate and your real blended ticket. You know these better than any benchmark.</li>
+<li>Match each bucket to the cheapest tool that covers it, in the order above.</li>
+</ol>
+
+<p>The reason this beats buying a tool first is that you stop overpaying for the leaks you do not have. A shop that only leaks at lunch does not need an around-the-clock system; a shop drowning in 9 p.m. emergencies does. If you also want to make sure the leads you finally capture get worked instead of stalling in a notebook, pair this with a real <a href="/blog/lead-follow-up-system-for-contractors/">lead follow-up system built for contractors</a>, and if you are an HVAC shop specifically, our <a href="/industries/hvac/">approach for HVAC companies</a> lays out where this fits alongside scheduling and dispatch.</p>
+
+<p>For the broader picture of how trade associations track demand and staffing pressure on these businesses, the <a href="https://www.acca.org" rel="nofollow">Air Conditioning Contractors of America</a> is a solid, non-vendor reference. The point of all of it is the same: a missed call is not a blip. It is a job, with a dollar value you can calculate, and most of those dollars are recoverable with routing changes and one answering layer rather than a new hire.</p>
+<h2>Frequently asked questions</h2>
+<h3>Will customers know they are talking to a machine after hours?</h3>
+<p>Modern AI answering identifies itself and sounds natural, but the goal is not to fool anyone. It captures the address, the problem, and whether it is an emergency, then books or routes. Most homeowners with a flooded basement at 11 p.m. care that someone responded, not who.</p>
+<h3>Is it legal to automatically text a missed caller back?</h3>
+<p>A transactional reply to someone who just called you is generally fine. Keep it about their request, include an opt-out, and avoid promotional language. Automated marketing texts to numbers without consent are where the TCPA and FCC robocall rules bite, so keep the auto-text a response, not a campaign.</p>
+<h3>Can an AI actually book an emergency, or just take a message?</h3>
+<p>Good setups do both: they triage true emergencies straight to your on-call tech and book non-urgent calls into open slots on your calendar. The dispatcher still decides priority; the tool just makes sure the call exists to be prioritized.</p>
+<h3>I have one office person — what is the cheapest first move?</h3>
+<p>Overflow routing in your phone system&#x27;s admin panel, plus voicemail-to-text. Both attack the daytime lunch-and-busy leak for very little effort before you add an after-hours answering layer.</p>
+<h3>Won&#x27;t I lose the personal touch that wins jobs in the trades?</h3>
+<p>The personal touch happens when your tech is at the kitchen table giving an honest diagnosis. It does not happen at a phone that rings out. Catching the call is what earns the chance to be personal in the first place.</p>
+  </article>
+
+  <div class="tk-cta">
+    <h3>About Turnkey AI</h3>
+    <p>Turnkey AI helps service businesses put practical AI tools and
+    automation to work — AI receptionists, automated lead follow-up, scheduling,
+    review requests, and more — so owners reclaim time without adding headcount.</p>
+  </div>
+</main>
+
+<footer class="tk-footer">
+  <p>&copy; 2026 Turnkey AI &middot; <a href="/">Turnkey AI</a> &middot;
+  <a href="/blog/">All articles</a></p>
+</footer>
+</body>
+</html>
