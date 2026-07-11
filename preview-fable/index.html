@@ -255,6 +255,45 @@ footer ul a:hover{color:#fff}
 }
 @media (hover:none) and (pointer:coarse){.cursor{display:none}}
 
+
+/* ===== OSMO PACK ===== */
+/* 1. draw-path cursor trail */
+.cursor-wrap{position:fixed;inset:0;z-index:1290;pointer-events:none;width:100%;height:100%}
+.cursor-canvas{top:0;left:0;width:100%;height:100%;z-index:0;position:absolute}
+@media (max-width:991px),(prefers-reduced-motion:reduce){.cursor-wrap{display:none}}
+/* 2. progressive blur (bottom of viewport, desktop only) */
+.progressive-blur{z-index:1140;pointer-events:none;isolation:isolate;contain:paint;width:100%;height:7em;transform-style:preserve-3d;position:fixed;bottom:0;left:0;overflow:hidden;transform:translateZ(0)}
+.progressive-blur__layer{width:100%;height:100%;position:absolute}
+.progressive-blur__layer.is--1{-webkit-backdrop-filter:blur(.09375em);backdrop-filter:blur(.09375em);-webkit-mask:linear-gradient(#0000 50%,#000 62.5% 75%,#0000 87.5%);mask:linear-gradient(#0000 50%,#000 62.5% 75%,#0000 87.5%)}
+.progressive-blur__layer.is--2{-webkit-backdrop-filter:blur(.1875em);backdrop-filter:blur(.1875em);-webkit-mask:linear-gradient(#0000 62.5%,#000 75% 87.5%,#0000 100%);mask:linear-gradient(#0000 62.5%,#000 75% 87.5%,#0000 100%)}
+.progressive-blur__layer.is--3{-webkit-backdrop-filter:blur(.375em);backdrop-filter:blur(.375em);-webkit-mask:linear-gradient(#0000 75%,#000 87.5% 100%);mask:linear-gradient(#0000 75%,#000 87.5% 100%)}
+.progressive-blur__layer.is--4{-webkit-backdrop-filter:blur(.75em);backdrop-filter:blur(.75em);-webkit-mask:linear-gradient(#0000 82%,#000 92% 100%);mask:linear-gradient(#0000 82%,#000 92% 100%)}
+.progressive-blur__layer.is--5{-webkit-backdrop-filter:blur(1.5em);backdrop-filter:blur(1.5em);-webkit-mask:linear-gradient(#0000 88%,#000 100%);mask:linear-gradient(#0000 88%,#000 100%)}
+@media (max-width:880px){.progressive-blur{display:none}}
+/* 3. per-word masked reveals on section headings */
+h2.big .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.14em;margin-bottom:-.14em}
+h2.big .w>span{display:inline-block;will-change:transform}
+/* 4. 3D tilt cards */
+.svc-card{transform-style:preserve-3d}
+.svc-card .tilt-glare{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(600px circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.22),transparent 45%);opacity:0;transition:opacity .3s;pointer-events:none}
+.svc-card:hover .tilt-glare{opacity:1}
+/* 6. film grain */
+.grain{position:fixed;inset:-50%;z-index:1400;pointer-events:none;opacity:.045;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");background-size:240px 240px;animation:grainShift 1.2s steps(4) infinite}
+@keyframes grainShift{0%{transform:translate(0,0)}25%{transform:translate(-2%,1%)}50%{transform:translate(1%,-2%)}75%{transform:translate(-1%,2%)}100%{transform:translate(2%,-1%)}}
+@media (max-width:880px),(prefers-reduced-motion:reduce){.grain{display:none}}
+/* 7. hero gradient shimmer sweep */
+h1.disp em.sf{background-size:220% 100%;animation:heroShimmer 7s ease-in-out infinite}
+@keyframes heroShimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+/* 9. stat hover pop */
+.st{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.st:hover{transform:translateY(-6px) scale(1.04)}
+.st .l{transition:letter-spacing .35s}
+.st:hover .l{letter-spacing:.22em}
+/* 10. fit-text hue drift */
+.fitband .fitline b{background-size:250% 100%;animation:fitDrift 9s linear infinite}
+@keyframes fitDrift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@media(prefers-reduced-motion:reduce){h1.disp em.sf,.fitband .fitline b,.grain{animation:none}}
+
 /* mobile bar */
 #mbar{position:fixed;left:0;right:0;bottom:0;z-index:1150;display:none;gap:1px;background:rgba(11,11,13,.97);backdrop-filter:blur(10px);padding:10px 12px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.35)}
 #mbar a{flex:1;text-align:center;font-size:14px;font-weight:800;padding:13px 8px;border-radius:12px}
@@ -282,6 +321,15 @@ footer ul a:hover{color:#fff}
 <body class="locked">
 
 <div id="prog"></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="cursor-wrap" aria-hidden="true"><canvas data-cursor-canvas class="cursor-canvas"></canvas></div>
+<div class="progressive-blur" aria-hidden="true">
+  <div class="progressive-blur__layer is--1"></div>
+  <div class="progressive-blur__layer is--2"></div>
+  <div class="progressive-blur__layer is--3"></div>
+  <div class="progressive-blur__layer is--4"></div>
+  <div class="progressive-blur__layer is--5"></div>
+</div>
 <div data-cursor="" class="cursor" aria-hidden="true">
   <div class="cursor-scramble">
     <span data-cursor-text-target class="cursor-scramble__text">Turnkey</span>
@@ -679,7 +727,7 @@ function buildMotion(){
     mqx -= (0.55 + mqv);
     var w = track.scrollWidth / 3;
     if(-mqx >= w) mqx += w;
-    track.style.transform = 'translateX(' + mqx + 'px)';
+    track.style.transform = 'translateX(' + mqx + 'px) skewX(' + Math.max(-8, Math.min(8, -(lenis ? lenis.velocity : 0) * 0.12)) + 'deg)';
   });
 
   var clt = document.getElementById('clt');
@@ -701,10 +749,148 @@ function buildMotion(){
 
   initDragShowcase();
   initStackingStickyCardsBounce();
+  initHeadingReveals();
+  initTiltCards();
+  initTrailCursor();
+  initTeamParallax();
   initOdometers(false);
   initTextFitToWidth();
   ScrollTrigger.refresh();
 }
+
+/* OSMO PACK: per-word masked heading reveals */
+function initHeadingReveals(){
+  document.querySelectorAll('h2.big').forEach(function(h){
+    var nodes = Array.prototype.slice.call(h.childNodes);
+    h.innerHTML = '';
+    nodes.forEach(function(node){
+      if(node.nodeType === 3){
+        node.textContent.split(/\s+/).forEach(function(word){
+          if(!word) return;
+          var w = document.createElement('span'); w.className = 'w';
+          var i2 = document.createElement('span'); i2.textContent = word;
+          w.appendChild(i2); h.appendChild(w);
+          h.appendChild(document.createTextNode(' '));
+        });
+      } else if(node.nodeType === 1){
+        var w = document.createElement('span'); w.className = 'w';
+        var i2 = document.createElement('span'); i2.appendChild(node.cloneNode(true));
+        w.appendChild(i2); h.appendChild(w);
+        h.appendChild(document.createTextNode(' '));
+      }
+    });
+    var words = h.querySelectorAll('.w > span');
+    gsap.set(words, { y: function(i, el){ return el.offsetHeight * 1.2; } });
+    gsap.to(words, { y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.06,
+      scrollTrigger: { trigger: h, start: 'top 85%' } });
+  });
+}
+
+/* OSMO PACK: 3D tilt + glare on cards */
+function initTiltCards(){
+  if(!fine) return;
+  document.querySelectorAll('.svc-card').forEach(function(card){
+    var glare = document.createElement('div'); glare.className = 'tilt-glare';
+    card.appendChild(glare);
+    var rx = gsap.quickTo(card, 'rotationX', { duration: 0.5, ease: 'power3.out' });
+    var ry = gsap.quickTo(card, 'rotationY', { duration: 0.5, ease: 'power3.out' });
+    card.addEventListener('mousemove', function(e){
+      var r = card.getBoundingClientRect();
+      var px = (e.clientX - r.left) / r.width;
+      var py = (e.clientY - r.top) / r.height;
+      ry((px - 0.5) * 8);
+      rx((0.5 - py) * 8);
+      card.style.setProperty('--gx', (px * 100) + '%');
+      card.style.setProperty('--gy', (py * 100) + '%');
+    });
+    card.addEventListener('mouseleave', function(){ rx(0); ry(0); });
+  });
+}
+
+/* OSMO PACK: draw-path cursor trail (osmo.supply) */
+function initTrailCursor(){
+  if(window.matchMedia('(pointer: coarse)').matches || reduced) return;
+  var canvas = document.querySelector('[data-cursor-canvas]');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var trailDuration = 900, trailColor = '#2D7FF9';
+  var strokeMinWidth = 1.5, strokeMaxWidth = 12, strokeSmoothing = 0.1;
+  var velocitySlow = 0.08, velocityFast = 2.8;
+  var glowBlur = 10, glowIntensity = 0.3;
+  var points = [], hasMouse = false, runningWidth = strokeMinWidth;
+  var mx = 0, my = 0, cx2 = 0, cy2 = 0;
+  function hexToRgb(hex){ var m = hex.replace('#','').match(/.{2}/g); return m.map(function(c){ return parseInt(c,16); }); }
+  var color = hexToRgb(trailColor);
+  function resize(){
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', function(e){ hasMouse = true; mx = e.clientX; my = e.clientY; });
+  gsap.ticker.add(function(){
+    if(!hasMouse) return;
+    cx2 += (mx - cx2) * 0.35; cy2 += (my - cy2) * 0.35;
+    if(points.length > 0){
+      var last = points[points.length - 1];
+      var dx = cx2 - last.x, dy = cy2 - last.y;
+      if(dx*dx + dy*dy < 0.1) return;
+    }
+    points.push({ x: cx2, y: cy2, time: performance.now() });
+  });
+  function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
+  function remap(v, inMin, inMax, outMin, outMax){
+    var t = clamp((v - inMin) / (inMax - inMin), 0, 1);
+    return outMin + t * (outMax - outMin);
+  }
+  function render(){
+    var now = performance.now();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    points = points.filter(function(p){ return now - p.time < trailDuration; });
+    if(points.length >= 3){
+      var r = color[0], g = color[1], b = color[2];
+      ctx.lineCap = 'butt';
+      ctx.shadowColor = 'rgba(' + r + ',' + g + ',' + b + ',' + glowIntensity + ')';
+      ctx.shadowBlur = glowBlur;
+      for(var i = 1; i < points.length - 1; i++){
+        var prev = points[i-1], curr = points[i], next = points[i+1];
+        var mx1 = (prev.x + curr.x) * 0.5, my1 = (prev.y + curr.y) * 0.5;
+        var mx2 = (curr.x + next.x) * 0.5, my2 = (curr.y + next.y) * 0.5;
+        var dx = curr.x - prev.x, dy = curr.y - prev.y;
+        var dt = curr.time - prev.time || 1;
+        var velocity = Math.sqrt(dx*dx + dy*dy) / dt;
+        var targetWidth = remap(velocity, velocitySlow, velocityFast, strokeMaxWidth, strokeMinWidth);
+        runningWidth += (targetWidth - runningWidth) * strokeSmoothing;
+        var age = now - curr.time;
+        var life = 1 - age / trailDuration;
+        var alpha = life * life * 0.55;
+        if(alpha <= 0.005) continue;
+        ctx.beginPath();
+        ctx.moveTo(mx1, my1);
+        ctx.quadraticCurveTo(curr.x, curr.y, mx2, my2);
+        ctx.lineWidth = runningWidth;
+        ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        ctx.stroke();
+      }
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+    }
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+
+/* OSMO PACK: team image inner parallax */
+function initTeamParallax(){
+  var img = document.querySelector('.teamimg img');
+  if(!img) return;
+  gsap.set(img, { scale: 1.15 });
+  gsap.fromTo(img, { yPercent: -6 }, { yPercent: 6, ease: 'none',
+    scrollTrigger: { trigger: '.teamimg', start: 'top bottom', end: 'bottom top', scrub: true } });
+}
+
 
 /* Osmo: stacking sticky cards (bounce) */
 function initStackingStickyCardsBounce(){
