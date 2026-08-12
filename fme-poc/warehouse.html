@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Warehouse · Forest Moon Operations</title>
+<link rel="stylesheet" href="demo.css">
+<style>
+  main { max-width: 760px; }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="tabs">
+    <button class="on" onclick="tab('pick',this)">Pick</button>
+    <button onclick="tab('receive',this)">Receive</button>
+    <button onclick="tab('count',this)">Count</button>
+  </div>
+
+  <!-- PICK -->
+  <section id="v-pick">
+    <div id="runbar"></div>
+    <div class="callout" style="margin-bottom:16px">Checking an item off writes a movement to the
+    ledger. Marking it short adjusts the shop's order so they are never billed for what did not
+    ship. This is the paper packing list, kept.</div>
+    <div id="pickList"></div>
+  </section>
+
+  <!-- RECEIVE -->
+  <section id="v-receive" style="display:none">
+    <div class="callout" style="margin-bottom:16px">Receiving happens against the purchase order,
+    with an iPad at the dock. Tap what arrived; over and short quantities are flagged, not lost.</div>
+    <div id="poList"></div>
+  </section>
+
+  <!-- COUNT -->
+  <section id="v-count" style="display:none">
+    <div class="callout warm" style="margin-bottom:16px">The digital version of the paper count
+    sheet, the most trusted record in the building. Enter what the shelf says; the system shows the
+    variance against the ledger and posts the adjustment in one tap.</div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-b">
+        <label class="field"><span>Item to count</span>
+          <select id="countItem"></select>
+        </label>
+        <label class="field"><span>Counted quantity on the shelf</span>
+          <input id="countQty" type="number" min="0" inputmode="numeric" placeholder="0">
+        </label>
+        <button class="btn primary big" onclick="doCount()">Record count</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Recent counts</h2><span class="sub">Variance posts as a ledger adjustment, so the history of every correction survives</span></div>
+      <div class="card-b" id="countLog"></div>
+    </div>
+  </section>
+
+</main>
+<script src="demo.js"></script>
+<script>
+FME.chrome("warehouse.html", "Warehouse · Dominic", "Pick, receive, and count with big tap targets");
+
+/* ---- PICK ---- */
+function renderRunbar(open) {
+  var host = document.getElementById("runbar");
+  var total = 0, done = 0;
+  open.forEach(function (o) {
+    o.lines.forEach(function (l) { total += 1; if (l.picked) done += 1; });
+  });
+  if (!total) { host.innerHTML = ""; return; }
+  host.innerHTML = '<div class="runbar" style="margin-bottom:14px;border:1px solid var(--line);border-radius:11px">' +
+    '<span>Picked ' + done + " of " + FME.qty(total, "line") + " across " + FME.qty(open.length, "order") + "</span>" +
+    '<div class="track"><div class="fill" style="width:' + (total ? Math.round(done / total * 100) : 0) + '%"></div></div></div>';
+}
+function pickRow(o, l) {
+  var it = FME.item(l.item);
+  var cls = l.picked ? (l.short ? "shorted" : "done") : "";
+  var meta = l.short
+    ? l.short + " short" + (l.shortReason ? " (" + l.shortReason + ")" : "") + ", billed for " + (l.qty - l.short) + " · tap to un-pick"
+    : l.picked
+      ? "Picked · tap to un-pick"
+      : "<b>Qty " + l.qty + "</b> · <b>bin " + it.bin + "</b> · on hand " + FME.num(FME.onHand(it.id));
+  var shortBtn = l.picked ? "" :
+    '<button class="shortlink" onclick="event.stopPropagation();markShort(\'' + o.id + "','" + l.item + "'," + l.qty + ')">Short</button>';
+  return '<div class="taprow ' + cls + '" onclick="pick(\'' + o.id + "','" + l.item + '\')">' +
+    '<div class="tapcheck">✓</div>' +
+    '<img class="thumb" src="' + FME.img(l.item) + '" alt="" loading="lazy">' +
+    '<div class="info"><div class="n">' + it.name + '</div><div class="m">' + meta + "</div></div>" +
+    shortBtn + "</div>";
+}
+function renderPick() {
+  var host = document.getElementById("pickList");
+  var open = FME.state().orders.filter(function (o) { return o.status === "submitted"; });
+  renderRunbar(open);
+  if (!open.length) {
+    host.innerHTML = '<div class="card"><div class="card-b" style="text-align:center;padding:34px">' +
+      '<div style="font-size:17px;font-weight:800;margin-bottom:6px">Pick list clear</div>' +
+      '<p class="mini-note">New shop orders appear here the moment they are submitted. Place one from the shop view to see it land.</p></div></div>';
+    return;
+  }
+  host.innerHTML = open.map(function (o) {
+    var c = FME.customer(o.customer);
+    var done = o.lines.filter(function (l) { return l.picked; }).length;
+    // Group lines by warehouse zone so the pick walks the building once, freezer last.
+    var byZone = {};
+    o.lines.forEach(function (l) {
+      var z = FME.zone(FME.item(l.item).bin);
+      (byZone[z] = byZone[z] || []).push(l);
+    });
+    var zones = FME.ZONE_ORDER.filter(function (z) { return byZone[z]; });
+    var body = zones.map(function (z) {
+      return '<div class="zonehead' + (z === "F" ? " frz" : "") + '">' + FME.zoneLabel(z) + "</div>" +
+        byZone[z].map(function (l) { return pickRow(o, l); }).join("");
+    }).join("");
+    var walk = FME.qty(o.lines.length, "line") + " · " + FME.qty(zones.length, "zone") +
+      (zones.indexOf("F") >= 0 ? " · freezer last" : "");
+    return '<div style="margin-bottom:24px">' +
+      '<div class="orderhead">' + FME.ring(done, o.lines.length, 36) +
+        '<div><h2 style="font-size:16.5px;font-weight:800">' + o.id + " · " + c.name + "</h2>" +
+        '<span class="mini-note">' + walk + " · placed " + FME.ago(o.ts) + " by " + o.placedBy + "</span></div></div>" +
+      body + "</div>";
+  }).join("");
+}
+function pick(orderId, itemId) {
+  var o = FME.order(orderId);
+  var l = o.lines.find(function (x) { return x.item === itemId; });
+  if (l.picked) { offerUnpick(orderId, itemId); return; }
+  FME.pickLine(orderId, itemId, "Dominic");
+  var after = FME.order(orderId);
+  var lAfter = after.lines.find(function (x) { return x.item === itemId; });
+  if (lAfter.short && !l.short) FME.toast("Only " + (lAfter.qty - lAfter.short) + " on the shelf; the rest marked short automatically. The shop is not billed for it.");
+  if (after.status === "picked") FME.toast(orderId + " fully picked. It is now on Cora's run.");
+  if (after.status === "cancelled") FME.toast(orderId + ": every line was short. Nothing goes on the van; Nathan and the shop can both see why.");
+  renderPick();
+}
+function offerUnpick(orderId, itemId) {
+  var it = FME.item(itemId);
+  FME.openSheet("Un-pick this line?",
+    '<p class="sheetnote">Un-picking <b>' + it.name + "</b> on <b>" + orderId + '</b> writes a reversing movement to the ledger. The original pick stays in the history; nothing is ever erased.</p>',
+    '<div style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" onclick="FME.closeSheet()">Leave it picked</button>' +
+    '<button class="btn primary" style="flex:1" onclick="doUnpick(\'' + orderId + "','" + itemId + '\')">Un-pick line</button></div>');
+}
+function doUnpick(orderId, itemId) {
+  FME.unpickLine(orderId, itemId, "Dominic");
+  FME.closeSheet();
+  FME.toast("Line un-picked. A reversing movement was written; the order is back on the pick list.");
+  renderPick();
+}
+function markShort(orderId, itemId, qty) {
+  var it = FME.item(itemId);
+  var o = FME.order(orderId);
+  var price = FME.priceFor(it, o.customer) || 0;
+  FME.openSheet("Short: " + it.sn,
+    '<p class="sheetnote"><b>' + orderId + "</b> ordered <b>" + FME.qty(qty, it.unit) + "</b>. How many are you short?</p>" +
+    '<div class="bigstep">' +
+      '<button type="button" onclick="stepShort(-1,' + qty + ')">−</button>' +
+      '<input id="shQty" type="number" inputmode="numeric" min="1" max="' + qty + '" value="1" oninput="shortPreview(' + qty + "," + price + ')">' +
+      '<button type="button" onclick="stepShort(1,' + qty + ')">+</button>' +
+    "</div>" +
+    '<div class="sheetnote" id="shPrev"></div>' +
+    '<span style="font-size:12px;font-weight:700;color:var(--mute)">Why is it short?</span>' +
+    FME.chipRow("shReason", ["Damaged", "Not in bin", "Vendor short"]),
+    '<button class="btn primary big" onclick="doShort(\'' + orderId + "','" + itemId + "'," + qty + ')">Mark short, adjust the order</button>');
+  shortPreview(qty, price);
+}
+function stepShort(d, max) {
+  var el = document.getElementById("shQty");
+  el.value = Math.min(max, Math.max(1, (parseInt(el.value, 10) || 1) + d));
+  el.oninput();
+}
+function shortPreview(qty, price) {
+  var el = document.getElementById("shQty");
+  var n = Math.min(qty, Math.max(1, parseInt(el.value, 10) || 1));
+  var billed = qty - n;
+  document.getElementById("shPrev").innerHTML = billed > 0
+    ? "The shop will be billed for <b>" + billed + " × " + FME.money(price) + " = " + FME.money(billed * price) + "</b>. The short is never invoiced."
+    : "<b>The whole line comes off the order.</b> The shop is billed nothing for it.";
+}
+function doShort(orderId, itemId, qty) {
+  var n = Math.min(qty, Math.max(1, parseInt(document.getElementById("shQty").value, 10) || 1));
+  var reason = document.getElementById("shReason").value || "";
+  FME.shortLine(orderId, itemId, n, "Dominic", reason.toLowerCase());
+  FME.closeSheet();
+  FME.toast("Marked " + n + " short" + (reason ? " (" + reason.toLowerCase() + ")" : "") + ". The shop's order and invoice adjust automatically.");
+  if (FME.order(orderId).status === "cancelled") FME.toast(orderId + ": every line was short. Nothing goes on the van; Nathan and the shop can both see why.");
+  renderPick();
+}
+
+/* ---- RECEIVE ---- */
+function renderPOs() {
+  var host = document.getElementById("poList");
+  var pos = FME.state().pos.filter(function (p) { return p.status !== "received" && p.status !== "draft"; });
+  var drafts = FME.state().pos.filter(function (p) { return p.status === "draft"; });
+  host.innerHTML = pos.map(function (po) {
+    var rows = po.lines.map(function (l) {
+      var it = FME.item(l.item);
+      var done = (l.received || 0) >= l.qty;
+      var over = (l.received || 0) > l.qty;
+      var cls = done ? (over ? "shorted" : "done") : "";
+      var status = over ? '<span class="chip low">Over by ' + (l.received - l.qty) + "</span>"
+        : done ? '<span class="chip ok">Received</span>'
+        : (l.received ? '<span class="chip low">' + l.received + " of " + l.qty + "</span>" : "");
+      var btn = done ? "" :
+        '<button class="btn soft" style="padding:8px 13px" onclick="recv(\'' + po.id + "','" + l.item + "'," + (l.qty - (l.received || 0)) + ')">Receive</button>';
+      return '<div class="taprow ' + cls + '">' +
+        '<div class="tapcheck">✓</div>' +
+        '<img class="thumb" src="' + FME.img(l.item) + '" alt="" loading="lazy">' +
+        '<div class="info"><div class="n">' + it.name + '</div><div class="m">Ordered ' + FME.num(l.qty) + " " + it.unit + (l.received ? " · received " + FME.num(l.received) : "") + "</div></div>" +
+        status + btn + "</div>";
+    }).join("");
+    var eta = po.eta ? (po.eta < Date.now() ? '<span class="chip low">Arrived, receiving open</span>' : '<span class="chip info">ETA ' + FME.dt(po.eta).split(",")[0] + "</span>") : "";
+    return '<div style="margin-bottom:22px">' +
+      '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:9px;flex-wrap:wrap">' +
+        '<h2 style="font-size:16.5px;font-weight:800">' + po.id + " · " + po.vendor + "</h2>" +
+        '<span class="chip ' + FME.chip(po.status) + '">' + po.status.charAt(0).toUpperCase() + po.status.slice(1) + "</span>" + eta + "</div>" +
+      rows + "</div>";
+  }).join("") + (drafts.length ?
+    '<div class="card"><div class="card-h"><h2>Draft purchase orders</h2><span class="sub">Written in the system, sent to the vendor from here, received against here. The text-message order, retired.</span></div><div class="card-b">' +
+    drafts.map(function (po) {
+      return '<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--mist)">' +
+        '<span style="font-weight:800">' + po.id + "</span><span class=\"dim\" style=\"flex:1;font-size:13px;color:var(--mute)\">" + po.vendor + " · " + po.lines.length + " lines</span>" +
+        '<span class="chip muted">Draft</span></div>';
+    }).join("") + "</div></div>" : "");
+}
+function recv(poId, itemId, remaining) {
+  var it = FME.item(itemId);
+  FME.openSheet("Receive: " + it.sn,
+    '<p class="sheetnote"><b>' + poId + "</b> · " + it.name + "<br><b>" + FME.qty(remaining, it.unit) + "</b> still outstanding on the PO.</p>" +
+    '<div class="bigstep">' +
+      '<button type="button" onclick="stepRecv(-1)">−</button>' +
+      '<input id="rcQty" type="number" inputmode="numeric" min="1" value="' + remaining + '" oninput="recvPreview(' + remaining + ')">' +
+      '<button type="button" onclick="stepRecv(1)">+</button>' +
+    "</div>" +
+    '<div id="rcPrev"></div>',
+    '<button class="btn primary big" id="rcBtn" onclick="doRecv(\'' + poId + "','" + itemId + '\')">Receive</button>');
+  recvPreview(remaining);
+}
+function stepRecv(d) {
+  var el = document.getElementById("rcQty");
+  el.value = Math.max(1, (parseInt(el.value, 10) || 1) + d);
+  el.oninput();
+}
+function recvPreview(remaining) {
+  var n = parseInt(document.getElementById("rcQty").value, 10);
+  var prev = document.getElementById("rcPrev");
+  var btn = document.getElementById("rcBtn");
+  if (!n || n < 1) {
+    prev.innerHTML = '<div class="sheetwarn">Enter the quantity that actually arrived.</div>';
+    btn.textContent = "Receive"; btn.disabled = true; return;
+  }
+  btn.disabled = false;
+  var over = n - remaining;
+  if (over > 0) {
+    prev.innerHTML = '<div class="sheetwarn">That is <b>over the PO by ' + over + "</b>. Every unit is still booked in and the overage is flagged on the PO; nothing is discarded.</div>";
+    btn.textContent = "Confirm over-receipt of " + n;
+  } else {
+    prev.innerHTML = '<p class="sheetnote">Books <b>' + n + "</b> into stock the moment you tap. On-hand updates from the ledger, nothing typed twice.</p>";
+    btn.textContent = "Receive " + n;
+  }
+}
+function doRecv(poId, itemId) {
+  var n = parseInt(document.getElementById("rcQty").value, 10);
+  if (!n || n < 1) return;
+  var res = FME.receivePoLine(poId, itemId, n, "Dominic");
+  FME.closeSheet();
+  if (!res) return;
+  FME.toast(res.over > 0
+    ? "Received " + res.stored + ", flagged over the PO by " + res.over + ". Every unit is in stock."
+    : "Received " + res.stored + ". On-hand updated from the ledger, nothing typed twice.");
+  renderPOs();
+}
+
+/* ---- COUNT ---- */
+function renderCount() {
+  var sel = document.getElementById("countItem");
+  sel.innerHTML = FME.state().items.map(function (it) {
+    return '<option value="' + it.id + '">' + it.name + " (ledger: " + FME.num(FME.onHand(it.id)) + " " + it.unit + ")</option>";
+  }).join("");
+  renderCountLog();
+}
+function renderCountLog() {
+  var host = document.getElementById("countLog");
+  var counts = FME.state().counts;
+  if (!counts.length) { host.innerHTML = '<p class="mini-note">No counts recorded in this demo session yet.</p>'; return; }
+  host.innerHTML = '<table class="tbl"><tr><th>Item</th><th class="num">Counted</th><th class="num">Ledger said</th><th class="num">Adjustment</th><th>When</th></tr>' +
+    counts.slice(0, 8).map(function (c) {
+      var it = FME.item(c.item);
+      var d = c.diff === 0 ? '<span class="chip ok">Exact match</span>'
+        : '<span class="chip ' + (c.diff < 0 ? "bad" : "low") + '">' + (c.diff > 0 ? "+" : "") + c.diff + "</span>";
+      return "<tr><td>" + it.name + '</td><td class="num strong">' + c.counted + '</td><td class="num dim">' + c.ledger + '</td><td class="num">' + d + "</td><td class=\"dim\">" + FME.ago(c.ts) + "</td></tr>";
+    }).join("") + "</table>";
+}
+function doCount() {
+  var id = document.getElementById("countItem").value;
+  var q = parseFloat(document.getElementById("countQty").value); // green coffee is counted in fractional lb
+  if (isNaN(q) || q < 0) { FME.toast("Enter the quantity on the shelf first."); return; }
+  var diff = FME.countItem(id, q, "Dominic");
+  FME.toast(diff === 0 ? "Count matches the ledger exactly. Nothing to adjust."
+    : "Variance of " + (diff > 0 ? "+" : "") + diff + " posted as a count adjustment.");
+  document.getElementById("countQty").value = "";
+  renderCount();
+}
+
+function tab(name, btn) {
+  document.querySelectorAll(".tabs button").forEach(function (b) { b.classList.remove("on"); });
+  btn.classList.add("on");
+  ["pick", "receive", "count"].forEach(function (v) {
+    document.getElementById("v-" + v).style.display = v === name ? "" : "none";
+  });
+  if (name === "pick") renderPick();
+  if (name === "receive") renderPOs();
+  if (name === "count") renderCount();
+}
+
+renderPick(); renderPOs(); renderCount();
+</script>
+</body>
+</html>

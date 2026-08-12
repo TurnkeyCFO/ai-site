@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Shop Ordering · Mojo Coffee</title>
+<link rel="icon" type="image/png" href="assets/brand/mojo-favicon.png">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-b" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div class="mini-note" style="text-transform:uppercase;letter-spacing:.08em">Ordering as</div>
+        <div id="custName" style="font-size:19px;font-weight:800"></div>
+        <div id="custSub" class="mini-note"></div>
+      </div>
+      <label class="field" style="margin:0;min-width:230px">
+        <span>Demo control: switch customer</span>
+        <select id="custPick" onchange="setCust(this.value)">
+          <option value="lakeline">Mojo Lakeline (Mojo price list)</option>
+          <option value="hcc">Hill Country Coffee Co. (wholesale price list)</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div id="growthNote" class="callout warm" style="display:none;margin-bottom:18px">
+    This customer sees a different catalog and different prices than the Mojo shops. Today this
+    is impossible: one Wix login, one price list, so wholesale customers order by text. Here it is
+    one setting.
+  </div>
+
+  <div class="tabs">
+    <button class="on" onclick="tab('catalog',this)">Catalog</button>
+    <button onclick="tab('orders',this)">My orders</button>
+  </div>
+
+  <!-- catalog -->
+  <section id="v-catalog">
+    <div class="card" style="margin-bottom:18px;background:linear-gradient(120deg,#090C0F,#222D3B);border:0">
+      <div class="card-b" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:20px 22px">
+        <div style="flex:1;min-width:220px">
+          <div style="color:#E8B35B;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase">Fastest path</div>
+          <div style="color:#fff;font-size:18px;font-weight:800;margin-top:3px">Your usual order, in one tap</div>
+          <div id="lastSummary" style="color:#C9C4BC;font-size:12.5px;margin-top:4px"></div>
+        </div>
+        <button class="btn primary glow" onclick="reorderLast()">Reorder it</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <input class="search" id="q" style="max-width:340px" placeholder="Search the catalog" oninput="renderCat()">
+      <select id="catFilter" onchange="renderCat()" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card);font-weight:600;font-size:13.5px">
+        <option value="">All categories</option>
+      </select>
+    </div>
+    <div class="catgrid" id="cat"></div>
+    <p class="section-note">Prices shown are this customer's contract prices. Items out of stock at
+    the warehouse cannot be added to the cart, so an order is never placed for something Dominic
+    would have to cross off by hand.</p>
+  </section>
+
+  <!-- orders -->
+  <section id="v-orders" style="display:none">
+    <div id="orderList" class="grid"></div>
+  </section>
+
+</main>
+
+<div class="cartbar" id="cartbar">
+  <div class="cartbar-in">
+    <div class="sum"><span id="barCt">0 items</span><small>·</small><span id="barTot">$0.00</span></div>
+    <button class="btn primary" onclick="openCart()">Review order</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeCart()"></div>
+<div class="drawer" id="cartDrawer">
+  <div class="drawer-h"><h3>Your order</h3><button class="drawer-x" onclick="closeCart()">✕</button></div>
+  <div class="drawer-b" id="cartBody"></div>
+  <div class="drawer-f">
+    <div style="display:flex;justify-content:space-between;font-weight:800;margin-bottom:11px">
+      <span>Total</span><span id="cartTot">$0.00</span>
+    </div>
+    <button class="btn primary big" id="submitBtn" onclick="submitOrder()">Submit order</button>
+    <p class="mini-note" style="margin-top:8px;text-align:center">Lands on Dominic's pick list the moment you tap</p>
+  </div>
+</div>
+
+<script src="demo.js"></script>
+<script>
+FME.chrome("shop.html", "Shop ordering", "The Amazon experience the shops asked for", "mojo");
+
+var CUST = sessionStorage.getItem("fme_shop_cust") || "lakeline";
+var cart = loadCart();
+
+function cartKey() { return "fme_poc_cart_" + CUST; }
+function loadCart() {
+  try { return JSON.parse(localStorage.getItem("fme_poc_cart_" + CUST)) || {}; } catch (e) { return {}; }
+}
+function saveCart() { try { localStorage.setItem(cartKey(), JSON.stringify(cart)); } catch (e) {} }
+
+function setCust(id) {
+  CUST = id; sessionStorage.setItem("fme_shop_cust", id);
+  cart = loadCart(); renderAll(); syncSwitcher();
+}
+function syncSwitcher() {
+  var c = FME.customer(CUST);
+  FME.switcherLabel("shop.html", "Shop ordering, " + c.name);
+}
+
+function catalogItems() {
+  return FME.state().items.filter(function (it) { return FME.priceFor(it, CUST) != null; });
+}
+
+function renderLastSummary() {
+  var last = FME.state().orders.filter(function (o) { return o.customer === CUST; })[0];
+  var el = document.getElementById("lastSummary");
+  if (!last) { el.textContent = "No previous order yet for this account. Build one below and it becomes your one-tap reorder."; return; }
+  // Show billed quantities (net of shorts) so the list and the total always agree.
+  var billed = last.lines.filter(function (l) { return l.qty - (l.short || 0) > 0; });
+  var names = billed.slice(0, 3).map(function (l) { return (l.qty - (l.short || 0)) + "× " + FME.item(l.item).sn; }).join(" · ");
+  el.textContent = last.id + " · " + names + (billed.length > 3 ? " · +" + (billed.length - 3) + " more" : "") + " · " + FME.money(FME.orderTotal(last));
+}
+
+function renderHead() {
+  var c = FME.customer(CUST);
+  document.getElementById("custName").innerHTML = (c.type === "mojo" ? FME.mojoMark(18) : "") + c.name;
+  document.getElementById("custSub").textContent = c.type === "wholesale"
+    ? "Wholesale account · contract pricing · ordered by " + c.contact
+    : "Mojo shop · standard price list · ordered by " + c.contact;
+  document.getElementById("custPick").value = CUST;
+  document.getElementById("growthNote").style.display = c.type === "wholesale" ? "" : "none";
+}
+
+function restockNote(itemId) {
+  // If an open or draft PO carries this item, name its arrival; otherwise "restocking".
+  var best = null;
+  FME.state().pos.forEach(function (po) {
+    if (po.status === "received") return;
+    po.lines.forEach(function (l) {
+      if (l.item === itemId && (l.received || 0) < l.qty) best = po;
+    });
+  });
+  if (!best) return "restocking";
+  if (best.status === "draft") return "reorder drafted";
+  if (best.eta) return "restocks " + new Date(best.eta).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return "on order";
+}
+
+function renderCat() {
+  var q = (document.getElementById("q").value || "").toLowerCase();
+  var cf = document.getElementById("catFilter").value;
+  var host = document.getElementById("cat");
+  var rows = catalogItems().filter(function (it) {
+    if (cf && it.cat !== cf) return false;
+    return !q || (it.name + " " + it.id).toLowerCase().indexOf(q) >= 0;
+  });
+  host.innerHTML = rows.map(function (it) {
+    var st = FME.stockStatus(it);
+    var price = FME.priceFor(it, CUST);
+    var oh = FME.onHand(it.id);
+    var inCart = cart[it.id] || 0;
+    var avail = st === "ok"
+      ? '<div class="avail ok"><span class="dot"></span>In stock · ' + FME.qty(oh, it.unit) + "</div>"
+      : st === "low"
+        ? '<div class="avail low"><span class="dot"></span>Low · ' + FME.qty(oh, it.unit) + " left</div>"
+        : '<div class="avail out"><span class="dot"></span>Out · ' + restockNote(it.id) + "</div>";
+    var u = FME.usual(CUST, it.id);
+    var memory = u
+      ? '<div class="memory">You usually order ' + u.qty + " · last ordered " +
+        new Date(u.last).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</div>"
+      : '<div class="memory"></div>';
+    var control = st === "out"
+      ? '<button class="notify" onclick="notifyMe(\'' + it.id + '\')">Notify me when it lands</button>'
+      : inCart
+        ? '<div class="step"><button onclick="add(\'' + it.id + '\',-1)">−</button><input value="' + inCart + '" readonly><button onclick="add(\'' + it.id + '\',1)">+</button></div>'
+        : '<button class="btn soft" onclick="add(\'' + it.id + '\',1)">Add</button>';
+    return '<div class="prod">' +
+      '<div class="pimg"><img src="' + FME.img(it.id) + '" alt="" loading="lazy"><span class="catchip">' + it.cat + "</span></div>" +
+      '<div class="pbody">' +
+        '<div class="n">' + it.name + "</div>" +
+        '<div class="p">' + FME.money(price) + ' <small>/ ' + it.unit + "</small></div>" +
+        avail + memory +
+      "</div>" +
+      '<div class="row pctl"><span class="mini-note">SKU ' + it.id + "</span>" + control + "</div>" +
+    "</div>";
+  }).join("");
+  renderBar();
+}
+
+function notifyMe(id) {
+  var it = FME.item(id);
+  FME.toast("You are on the list. The moment " + it.sn + " is received, this account is notified.");
+}
+
+function add(id, d) {
+  var it = FME.item(id);
+  if (FME.stockStatus(it) === "out") return;
+  var avail = FME.available(id); // on hand minus what other open orders have already claimed
+  var next = Math.max(0, (cart[id] || 0) + d);
+  if (d > 0 && next > avail) {
+    FME.toast(avail > 0
+      ? "Only " + FME.qty(avail, it.unit) + " available; " + FME.num(FME.committed(id)) + " already promised to open orders."
+      : "Everything on hand is already promised to open orders.");
+    next = Math.min(next, avail);
+  }
+  cart[id] = next;
+  if (!cart[id]) delete cart[id];
+  saveCart();
+  renderCat(); renderCartBody();
+}
+
+function cartCount() { return Object.keys(cart).reduce(function (a, k) { return a + cart[k]; }, 0); }
+function cartTotal() {
+  return Object.keys(cart).reduce(function (a, k) { return a + FME.priceFor(FME.item(k), CUST) * cart[k]; }, 0);
+}
+
+function renderBar() {
+  var n = cartCount();
+  var bar = document.getElementById("cartbar");
+  bar.classList.toggle("on", n > 0);
+  document.body.classList.toggle("has-cartbar", n > 0);
+  document.getElementById("barCt").textContent = n + " " + FME.pl(n, "item");
+  document.getElementById("barTot").textContent = FME.money(cartTotal());
+}
+
+function renderCartBody() {
+  var host = document.getElementById("cartBody");
+  var keys = Object.keys(cart);
+  if (!keys.length) { host.innerHTML = '<p class="mini-note">Your cart is empty.</p>'; }
+  else {
+    host.innerHTML = keys.map(function (k) {
+      var it = FME.item(k);
+      return '<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--mist)">' +
+        '<img src="' + FME.img(k) + '" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:var(--cream);flex:none">' +
+        '<div style="flex:1"><div style="font-weight:700;font-size:13.5px">' + it.name + "</div>" +
+        '<div class="mini-note">' + FME.money(FME.priceFor(it, CUST)) + " / " + it.unit + "</div></div>" +
+        '<div class="step"><button onclick="add(\'' + k + '\',-1)">−</button><input value="' + cart[k] + '" readonly><button onclick="add(\'' + k + '\',1)">+</button></div>' +
+      "</div>";
+    }).join("");
+  }
+  document.getElementById("cartTot").textContent = FME.money(cartTotal());
+  document.getElementById("submitBtn").disabled = !keys.length;
+  renderBar();
+}
+
+function openCart() { renderCartBody(); document.getElementById("scrim").classList.add("on"); document.getElementById("cartDrawer").classList.add("on"); }
+function closeCart() { document.getElementById("scrim").classList.remove("on"); document.getElementById("cartDrawer").classList.remove("on"); }
+
+function submitOrder() {
+  var c = FME.customer(CUST);
+  // Re-check stock at submit: the shelf may have moved since items went in the cart.
+  for (var k in cart) {
+    var it = FME.item(k);
+    var avail = FME.available(k);
+    if (avail <= 0) { FME.toast(it.sn + " is no longer available; remove it to submit."); return; }
+    if (cart[k] > avail) { FME.toast("Only " + FME.qty(avail, it.unit) + " of " + it.sn + " available now; adjust the line to submit."); return; }
+  }
+  var lines = Object.keys(cart).map(function (k) { return { item: k, qty: cart[k] }; });
+  var o = FME.placeOrder(CUST, c.contact, lines);
+  if (!o) { FME.toast("Nothing in the cart to submit."); return; }
+  cart = {}; saveCart(); closeCart(); renderCat();
+  FME.toast("Order " + o.id + " submitted. Dominic's pick list just updated.");
+  setTimeout(function () { showOrders(); }, 900);
+}
+
+function reorderLast() {
+  var last = FME.state().orders.filter(function (o) { return o.customer === CUST; })[0];
+  if (!last) { FME.toast("No previous order for this customer yet."); return; }
+  cart = {};
+  var skipped = [];
+  last.lines.forEach(function (l) {
+    var avail = FME.available(l.item);
+    if (avail > 0) cart[l.item] = Math.min(l.qty, avail);
+    else skipped.push(FME.item(l.item).sn);
+  });
+  saveCart();
+  if (!Object.keys(cart).length) {
+    FME.toast("Everything on your last order is out of stock right now. Nothing was added to the cart.");
+    renderCat(); return;
+  }
+  renderCat(); openCart();
+  FME.toast(skipped.length
+    ? "Last order loaded, except " + skipped.join(" and ") + " (out of stock). Adjust and submit."
+    : "Last order loaded into the cart. Adjust and submit.");
+}
+
+/* ---- orders tab ---- */
+var FLOW = ["submitted", "picked", "out", "delivered"];
+function renderOrders() {
+  var host = document.getElementById("orderList");
+  var mine = FME.state().orders.filter(function (o) { return o.customer === CUST; });
+  if (!mine.length) { host.innerHTML = '<p class="mini-note">No orders yet. Submit one from the catalog.</p>'; return; }
+  host.innerHTML = mine.map(function (o) {
+    var reachedIdx = FLOW.indexOf(o.status === "invoiced" ? "delivered" : o.status);
+    var steps = FLOW.map(function (s, i) {
+      var e = (o.events || []).filter(function (x) { return x.status === s; })[0];
+      var done = i <= reachedIdx;
+      return '<div class="tl-step' + (done ? " done" : "") + '"><div class="tl-dot"></div><div>' +
+        '<div class="tl-t">' + FME.STATUS_LABEL[s] + "</div>" +
+        '<div class="tl-s">' + (e ? FME.dt(e.ts) + (e.note ? " · " + e.note : "") + " · " + e.by : "Pending") + "</div>" +
+      "</div></div>";
+    }).join("");
+    var lines = o.lines.map(function (l) {
+      var it = FME.item(l.item);
+      var shortNote = l.short ? ' <span class="chip low">' + l.short + " short, not billed</span>" : "";
+      return "<tr><td>" + it.name + shortNote + '</td><td class="num">' + (l.qty - (l.short || 0)) + "</td></tr>";
+    }).join("");
+    var receipt = "";
+    if ((o.status === "delivered" || o.status === "invoiced") && !o.receipt) {
+      receipt = '<div class="divider"></div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
+        '<span style="font-weight:700;font-size:13.5px">Confirm this delivery arrived complete:</span>' +
+        '<button class="btn primary" onclick="receipt(\'' + o.id + "',true)\">All received</button>" +
+        '<button class="btn ghost" onclick="receipt(\'' + o.id + "',false)\">Report a problem</button></div>" +
+        '<p class="mini-note" style="margin-top:6px">A flagged delivery opens a discrepancy on the order itself. Nobody pulls camera footage.</p>';
+    } else if (o.receipt) {
+      receipt = '<div class="divider"></div>' + (o.receipt.ok
+        ? '<span class="chip ok">Receipt confirmed by ' + o.placedBy + "</span>"
+        : '<span class="chip bad">Discrepancy reported: ' + (o.receipt.note || "see order") + "</span>");
+    }
+    return '<div class="card"><div class="card-h"><h2>' + o.id + "</h2>" +
+      '<span class="chip ' + FME.chip(o.status) + '">' + FME.STATUS_LABEL[o.status] + "</span>" +
+      '<span class="sub" style="margin-left:auto">' + FME.money(FME.orderTotal(o)) + " · " + FME.ago(o.ts) + "</span></div>" +
+      '<div class="card-b"><div class="split">' +
+        '<div><table class="tbl"><tr><th>Item</th><th class="num">Qty</th></tr>' + lines + "</table></div>" +
+        '<div class="timeline">' + steps + "</div>" +
+      "</div>" + receipt + "</div></div>";
+  }).join("");
+}
+
+function receipt(id, ok) {
+  if (ok) {
+    FME.confirmReceipt(id, true, "");
+    FME.toast("Receipt confirmed. The order record now carries proof of delivery.");
+    renderOrders();
+    return;
+  }
+  FME.openSheet("Report a problem with " + id,
+    '<span style="font-size:12px;font-weight:700;color:var(--mute)">What was wrong?</span>' +
+    FME.chipRow("rpReason", ["Missing item", "Damaged", "Wrong item", "Short quantity"]) +
+    '<label class="field"><span>Anything else (optional)</span>' +
+    '<input id="rpNote" placeholder="For example: one case of cups missing"></label>' +
+    '<p class="sheetnote">This flags the delivery on the order itself and lands in Nathan\'s attention queue. Nobody pulls camera footage.</p>',
+    '<div style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" onclick="FME.closeSheet()">Cancel</button>' +
+    '<button class="btn primary" style="flex:1" onclick="doReport(\'' + id + '\')">File the discrepancy</button></div>');
+}
+function doReport(id) {
+  var reason = document.getElementById("rpReason").value;
+  var extra = (document.getElementById("rpNote").value || "").trim();
+  if (!reason && !extra) { FME.toast("Pick a reason or describe the problem first."); return; }
+  var note = reason ? reason + (extra ? ": " + extra : "") : extra;
+  FME.confirmReceipt(id, false, note);
+  FME.closeSheet();
+  FME.toast("Discrepancy logged against " + id + ". Nathan can see it immediately.");
+  renderOrders();
+}
+
+function tab(name, btn) {
+  document.querySelectorAll(".tabs button").forEach(function (b) { b.classList.remove("on"); });
+  if (btn) btn.classList.add("on");
+  document.getElementById("v-catalog").style.display = name === "catalog" ? "" : "none";
+  document.getElementById("v-orders").style.display = name === "orders" ? "" : "none";
+  if (name === "orders") renderOrders();
+}
+function showOrders() { tab("orders", document.querySelectorAll(".tabs button")[1]); }
+
+function renderAll() {
+  renderHead(); renderLastSummary();
+  var cats = {};
+  catalogItems().forEach(function (it) { cats[it.cat] = 1; });
+  var cf = document.getElementById("catFilter");
+  cf.innerHTML = '<option value="">All categories</option>' + Object.keys(cats).map(function (c) { return "<option>" + c + "</option>"; }).join("");
+  renderCat(); renderCartBody();
+}
+renderAll(); syncSwitcher();
+</script>
+</body>
+</html>

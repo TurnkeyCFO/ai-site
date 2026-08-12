@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Delivery Run · Forest Moon Operations</title>
+<link rel="stylesheet" href="demo.css">
+<style>
+  main { max-width: 640px; }
+</style>
+</head>
+<body>
+<main class="drv-main">
+
+  <div class="routeprog" id="routeprog"></div>
+
+  <div class="drv-grid">
+    <div>
+      <div class="callout" style="margin-bottom:16px">Every stop ends with a name and a signature on
+      the order itself. When a shop says something never arrived, the answer is on this screen, not on
+      the security cameras.</div>
+      <div id="ready"></div>
+      <div id="stops"></div>
+      <div id="doneList"></div>
+    </div>
+    <div class="maproute">
+      <div class="card routecard">
+        <div class="card-h"><h2><span class="ic" id="mapIc"></span>Today's route</h2><span class="sub">Hill Country run</span></div>
+        <div class="card-b" id="routemap"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="sigDrawer">
+  <div class="drawer-h"><h3 id="sigTitle">Confirm delivery</h3><button class="drawer-x" onclick="closeSig()">✕</button></div>
+  <div class="drawer-b">
+    <div id="sigManifest" style="margin-bottom:14px"></div>
+    <label class="field"><span>Received by (name at the shop)</span>
+      <input id="sigName" placeholder="Who is signing?">
+    </label>
+    <span style="font-size:12px;font-weight:700;color:var(--mute)">Signature</span>
+    <canvas class="sigpad" id="pad" width="380" height="120"></canvas>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px">
+      <button class="btn ghost" style="padding:6px 12px;font-size:12px" onclick="clearPad()">Clear</button>
+    </div>
+  </div>
+  <div class="drawer-f">
+    <button class="btn primary big" onclick="confirmDelivery()">Delivered, capture proof</button>
+    <p class="mini-note" style="margin-top:8px;text-align:center">Timestamps automatically. The shop confirms receipt on their own screen.</p>
+  </div>
+</div>
+
+<script src="demo.js"></script>
+<script>
+FME.chrome("driver.html", "Delivery run · Cora", "Proof of delivery at every stop");
+
+var current = null;
+
+document.getElementById("mapIc").innerHTML = FME.icon("pin", 17);
+
+/* Route progress: one bar, one sentence, instead of three contradictory counters. */
+function renderProg(out, ready, doneToday) {
+  var total = doneToday.length + out.length;
+  var host = document.getElementById("routeprog");
+  var segs = doneToday.map(function () { return '<span class="seg done"></span>'; })
+    .concat(out.map(function (_, i) { return '<span class="seg' + (i === 0 ? " active" : "") + '"></span>'; })).join("");
+  var line;
+  if (!total && !ready.length) line = "No run today yet. Picked orders appear here ready to load.";
+  else if (!out.length && total) line = "Run complete: " + FME.qty(doneToday.length, "stop") + " delivered and signed.";
+  else line = "Stop " + (doneToday.length + 1) + " of " + total + " · " + FME.qty(out.length, "stop") + " remaining" +
+    (ready.length ? " · " + FME.qty(ready.length, "order") + " ready to load" : "");
+  host.innerHTML = "<span>" + line + "</span>" + (total ? '<div class="segs">' + segs + "</div>" : "");
+}
+
+/* Hand-built route map: stylized Hill Country roads, numbered pins, dashed route. */
+function renderMap(stopsToday) {
+  var W = 340, H = 300;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Delivery route map with numbered stops">'];
+  o.push('<rect width="' + W + '" height="' + H + '" rx="10" fill="#F2F5F0"/>');
+  // water + terrain hints
+  o.push('<path d="M 0 208 C 60 196, 90 226, 150 214 S 260 190, 340 204" fill="none" stroke="#CFE3EE" stroke-width="9" stroke-linecap="round" opacity=".8"/>');
+  o.push('<text x="14" y="228" font-size="8.5" fill="#8FB3C6" font-weight="600" font-family="Plus Jakarta Sans">Colorado River</text>');
+  // roads
+  var roads = [
+    "M 20 130 C 90 118, 200 132, 330 118",           // Hwy 29 east-west
+    "M 88 22 C 96 90, 120 180, 108 290",             // 281 north-south
+    "M 300 20 C 282 110, 296 200, 286 292",          // 183 corridor
+    "M 150 292 C 176 220, 236 176, 330 158"          // 1431 toward Cedar Park
+  ];
+  roads.forEach(function (d) {
+    o.push('<path d="' + d + '" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>');
+    o.push('<path d="' + d + '" fill="none" stroke="#DCE4DA" stroke-width="7" stroke-linecap="round" opacity=".55"/>');
+  });
+  o.push('<text x="26" y="124" font-size="8.5" fill="#9AA8A0" font-weight="700" font-family="Plus Jakarta Sans">HWY 29</text>');
+  o.push('<text x="94" y="34" font-size="8.5" fill="#9AA8A0" font-weight="700" font-family="Plus Jakarta Sans">US 281</text>');
+  // warehouse mark
+  var wx = 150, wy = 168;
+  o.push('<rect x="' + (wx - 7) + '" y="' + (wy - 7) + '" width="14" height="14" rx="4" fill="#090C0F"/>');
+  o.push('<text x="' + wx + '" y="' + (wy + 22) + '" font-size="8.5" fill="#5A6B80" font-weight="800" text-anchor="middle" font-family="Plus Jakarta Sans">Warehouse</text>');
+  // route polyline: warehouse -> each stop in sequence
+  var pts = [[wx, wy]];
+  stopsToday.forEach(function (s) {
+    var g = FME.geo(s.o.customer);
+    pts.push([g.x / 100 * (W - 50) + 25, g.y / 100 * (H - 60) + 22]);
+  });
+  if (pts.length > 1) {
+    var d = pts.map(function (p, i) { return (i ? "L " : "M ") + p[0].toFixed(0) + " " + p[1].toFixed(0); }).join(" ");
+    o.push('<path d="' + d + '" fill="none" stroke="#C19977" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" opacity=".75"/>');
+  }
+  // pins
+  stopsToday.forEach(function (s, i) {
+    var x = pts[i + 1][0], y = pts[i + 1][1];
+    var col = s.done ? "#0F7B4D" : s.active ? "#E8B35B" : "#8B99AC";
+    var numCol = s.active ? "#090C0F" : "#fff"; // ink on gold, white elsewhere
+    o.push('<path d="M ' + x + " " + (y - 2) + " c -8 -9 -8 -18 0 -18 s 8 9 0 18 z\" transform=\"translate(0,2)\" fill=\"" + col + '"/>');
+    o.push('<circle cx="' + x + '" cy="' + (y - 13) + '" r="6.5" fill="' + col + '"/>');
+    o.push('<text x="' + x + '" y="' + (y - 10) + '" font-size="8.5" fill="' + numCol + '" font-weight="800" text-anchor="middle" font-family="Plus Jakarta Sans">' + (i + 1) + "</text>");
+    var c = FME.customer(s.o.customer);
+    o.push('<text x="' + x + '" y="' + (y + 12) + '" font-size="8" fill="#5A6B80" font-weight="700" text-anchor="middle" font-family="Plus Jakarta Sans">' + c.name.replace("Mojo ", "") + "</text>");
+  });
+  o.push("</svg>");
+  o.push('<div class="runway-legend" style="margin-top:6px">' +
+    '<span><span class="sw" style="background:#0F7B4D"></span>Delivered</span>' +
+    '<span><span class="sw" style="background:#E8B35B"></span>Next stop</span>' +
+    '<span><span class="sw" style="background:#8B99AC"></span>Later today</span></div>');
+  document.getElementById("routemap").innerHTML = o.join("");
+}
+
+function renderRun() {
+  var S = FME.state();
+  var out = S.orders.filter(function (o) { return o.status === "out"; });
+  var ready = S.orders.filter(function (o) { return o.status === "picked"; });
+  var done = S.orders.filter(function (o) { return (o.status === "delivered" || o.status === "invoiced"); }).slice(0, 5);
+  var doneToday = S.orders.filter(function (o) {
+    return (o.events || []).some(function (e) { return e.status === "delivered" && FME.isToday(e.ts); });
+  });
+
+  renderProg(out, ready, doneToday);
+  renderMap(doneToday.map(function (o) { return { o: o, done: true }; })
+    .concat(out.map(function (o, i) { return { o: o, active: i === 0 }; })));
+
+  var rHost = document.getElementById("ready");
+  rHost.innerHTML = ready.length ?
+    '<div class="card" style="margin-bottom:16px"><div class="card-h"><h2>Wrapped and ready to load</h2>' +
+    '<span class="sub">Picked by Dominic, waiting on the van</span></div><div class="card-b">' +
+    ready.map(function (o) {
+      var c = FME.customer(o.customer);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--mist)">' +
+        '<span style="font-weight:800">' + o.id + '</span><span style="flex:1;color:var(--mute);font-size:13.5px">' + c.name + " · " + o.lines.length + " lines</span>" +
+        '<button class="btn soft" onclick="load(\'' + o.id + '\')">Load on van</button></div>';
+    }).join("") + "</div></div>" : "";
+
+  var sHost = document.getElementById("stops");
+  sHost.innerHTML = out.length ? out.map(function (o, i) {
+    var c = FME.customer(o.customer);
+    var g = FME.geo(o.customer);
+    var manifest = o.lines.map(function (l) {
+      var it = FME.item(l.item);
+      var q = l.qty - (l.short || 0);
+      if (q <= 0) return "";
+      return '<div style="display:flex;gap:9px;padding:6px 0;border-bottom:1px solid var(--mist);font-size:13.5px;align-items:center">' +
+        '<span style="font-weight:700;min-width:34px;text-align:right">' + q + "×</span>" +
+        '<img src="' + FME.img(l.item) + '" alt="" style="width:28px;height:28px;border-radius:6px;object-fit:cover;background:var(--cream)">' +
+        "<span>" + it.name + "</span></div>";
+    }).join("");
+    var issue = o.doorIssue ? '<div class="sheetwarn" style="margin:0 17px 12px">Flagged: ' + o.doorIssue + " · Nathan can see this. Retry the stop or head back.</div>" : "";
+    var nav = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(c.name + ", " + g.addr + ", TX");
+    return '<div class="stop"><div class="stop-h">' +
+      '<div class="stop-n">' + (doneToday.length + i + 1) + "</div>" +
+      '<div class="t">' + (c.type === "mojo" ? FME.mojoMark(16) : "") + c.name + "<small>" + o.id + " · " + FME.qty(o.lines.filter(function (l) { return l.qty - (l.short || 0) > 0; }).length, "line") + "</small></div>" +
+      '<button class="btn primary' + (i === 0 ? " glow" : "") + '" onclick="openSig(\'' + o.id + '\')">Arrived</button></div>' +
+      '<div class="stop-b">' +
+      '<div class="stop-meta"><span>' + g.addr + '</span><a href="tel:5125550" onclick="return false">Call ' + c.contact + '</a>' +
+      '<a href="' + nav + '" target="_blank" rel="noopener">Navigate</a></div>' +
+      (manifest || '<p class="mini-note">Nothing on the manifest for this stop.</p>') +
+      '<div style="margin-top:9px"><button class="btn ghost" style="font-size:12.5px" onclick="openIssue(\'' + o.id + '\')">Problem at the door</button></div></div>' +
+      issue + "</div>";
+  }).join("") : '<div class="card" style="margin-bottom:16px"><div class="card-b" style="text-align:center;padding:30px">' +
+      '<div style="font-size:16px;font-weight:800;margin-bottom:5px">No stops on the van</div>' +
+      '<p class="mini-note">Load a picked order above, or pick one in the warehouse view first.</p></div></div>';
+
+  var dHost = document.getElementById("doneList");
+  dHost.innerHTML = done.length ?
+    '<div class="card" style="margin-top:4px"><div class="card-h"><h2>Recent deliveries</h2><span class="sub">Every one signed, timestamped, on the order itself</span></div><div class="card-b">' +
+    done.map(function (o) {
+      var c = FME.customer(o.customer);
+      var del = (o.events || []).filter(function (e) { return e.status === "delivered"; })[0];
+      var glyph = o.sig
+        ? '<img src="' + o.sig + '" alt="signature" style="height:26px;max-width:72px;object-fit:contain;background:#fff;border:1px solid var(--mist);border-radius:6px">'
+        : FME.sigGlyph(20);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--mist);font-size:13.5px">' +
+        '<span class="chip ok">✓</span><span style="font-weight:800">' + o.id + '</span>' +
+        '<span style="flex:1;color:var(--mute)">' + c.name + "</span>" + glyph +
+        '<span class="mini-note">Signed by ' + (o.signedBy || "-") + (del ? " · " + FME.ago(del.ts) : "") + "</span></div>";
+    }).join("") + "</div></div>" : "";
+}
+
+function load(id) {
+  FME.startRun([id], "Cora");
+  FME.toast(id + " loaded. It is now a stop on the run.");
+  renderRun();
+}
+
+function openIssue(orderId) {
+  var o = FME.order(orderId);
+  var c = FME.customer(o.customer);
+  FME.openSheet("Problem at " + c.name,
+    '<span style="font-size:12px;font-weight:700;color:var(--mute)">What happened?</span>' +
+    FME.chipRow("diReason", ["Nobody there", "Refused", "Partial at the door"]) +
+    '<p class="sheetnote">The stop stays on the run and the flag lands in Nathan\'s attention queue immediately, with your name and the time on it.</p>',
+    '<div style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" onclick="FME.closeSheet()">Cancel</button>' +
+    '<button class="btn primary" style="flex:1" onclick="doIssue(\'' + orderId + '\')">Flag the stop</button></div>');
+}
+function doIssue(orderId) {
+  var reason = document.getElementById("diReason").value;
+  if (!reason) { FME.toast("Pick what happened first."); return; }
+  FME.doorIssue(orderId, reason, "Cora");
+  FME.closeSheet();
+  FME.toast("Flagged: " + reason.toLowerCase() + ". Nathan can see it now.");
+  renderRun();
+}
+
+/* signature pad */
+var pad, ctx, drawing = false, drew = false;
+function initPad() {
+  pad = document.getElementById("pad");
+  ctx = pad.getContext("2d");
+  ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.strokeStyle = "#121A26";
+  function pos(e) {
+    var r = pad.getBoundingClientRect();
+    var t = e.touches ? e.touches[0] : e;
+    return { x: (t.clientX - r.left) * (pad.width / r.width), y: (t.clientY - r.top) * (pad.height / r.height) };
+  }
+  function down(e) { drawing = true; drew = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+  function move(e) { if (!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+  function up() { drawing = false; }
+  pad.addEventListener("mousedown", down); pad.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  pad.addEventListener("touchstart", down, { passive: false }); pad.addEventListener("touchmove", move, { passive: false }); pad.addEventListener("touchend", up);
+}
+function clearPad() { ctx.clearRect(0, 0, pad.width, pad.height); drew = false; }
+
+function openSig(orderId) {
+  current = orderId;
+  var o = FME.order(orderId);
+  var c = FME.customer(o.customer);
+  document.getElementById("sigTitle").textContent = "Deliver " + orderId + " · " + c.name;
+  document.getElementById("sigName").value = c.contact;
+  document.getElementById("sigManifest").innerHTML =
+    '<div class="mini-note" style="margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Manifest</div>' +
+    o.lines.map(function (l) {
+      var it = FME.item(l.item); var q = l.qty - (l.short || 0);
+      if (q <= 0) return "";
+      return '<div style="display:flex;gap:8px;font-size:13px;padding:3px 0"><span style="font-weight:700;min-width:30px;text-align:right">' + q + "×</span><span>" + it.name + "</span></div>";
+    }).join("");
+  clearPad();
+  document.getElementById("scrim").classList.add("on");
+  document.getElementById("sigDrawer").classList.add("on");
+}
+function closeSig() {
+  document.getElementById("scrim").classList.remove("on");
+  document.getElementById("sigDrawer").classList.remove("on");
+}
+function confirmDelivery() {
+  var name = (document.getElementById("sigName").value || "").trim();
+  if (!name) { FME.toast("Enter who is receiving the delivery."); return; }
+  if (!drew) { FME.toast("Capture a signature, even a scribble, for the demo."); return; }
+  var sig = pad.toDataURL("image/png");
+  FME.deliver(current, name, "Cora", sig);
+  closeSig();
+  FME.toast("Delivered and signed by " + name + ". The order is queued for invoicing.");
+  renderRun();
+}
+
+initPad(); renderRun();
+</script>
+</body>
+</html>

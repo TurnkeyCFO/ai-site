@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Forest Moon Operations · Proof of Concept</title>
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main>
+
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">Forest Moon Operations · Proof of concept</div>
+        <h1>One system of record, from purchase order to signed delivery.</h1>
+        <p class="lede">A working model of the platform in the Turnkey AI proposal, built from the
+        August 11 warehouse walkthrough. Every screen is interactive and every number is sample
+        data. Place an order as a shop, then watch it move through the whole building.</p>
+        <div class="quote">
+          <em>"I want them to have an Amazon experience."</em>
+          <span>Nathan, on what ordering should feel like for the shops</span>
+        </div>
+        <div style="margin-top:26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <img src="assets/brand/mojo-coffee-logo.png" alt="Mojo Coffee" style="height:26px;width:auto">
+          <span style="font-size:12.5px;color:#C9C4BC;font-weight:600">Built for Forest Moon and the Mojo drive-thru shops</span>
+        </div>
+      </div>
+      <div class="proofstrip" aria-label="One order moving through the system">
+        <div class="proof-card"><div class="pt">Submitted <span class="ic" id="pi1"></span></div><div class="ps">SO-1042 · Mojo Kingsland · placed by Drew</div></div>
+        <div class="proof-card"><div class="pt">Picked <span class="ic" id="pi2"></span></div><div class="ps">Checked off the pallet by Dominic, bin by bin</div></div>
+        <div class="proof-card"><div class="pt">Out for delivery <span class="ic" id="pi3"></span></div><div class="ps">Loaded on the van, a stop on Cora's run</div></div>
+        <div class="proof-card"><div class="pt">Delivered, signed <span class="ic" id="pi4"></span></div><div class="ps">Signature captured at the door, timestamped</div></div>
+        <div class="proof-card"><div class="pt">Invoiced <span class="ic" id="pi5"></span></div><div class="ps">Synced to QuickBooks the moment it lands</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:22px">
+    <div class="card-b" style="display:flex;gap:26px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:240px">
+        <h2 style="font-size:16px;font-weight:800;margin-bottom:5px">How to demo it</h2>
+        <p style="font-size:13.5px;color:var(--mute);max-width:72ch">Open the shop view and submit an order.
+        Switch to the warehouse view and pick it, short an item if you like. Move to the driver
+        view, deliver the stop and capture a signature. Then open operations and watch the same
+        order arrive in the invoicing queue with its full chain of custody. One movement ledger
+        underneath, so nothing can drift.</p>
+      </div>
+      <div class="steprail">
+        <span class="chip info">Submitted</span><span class="joint"></span>
+        <span class="chip brand">Picked</span><span class="joint"></span>
+        <span class="chip brand">Out for delivery</span><span class="joint"></span>
+        <span class="chip ok">Delivered</span><span class="joint"></span>
+        <span class="chip ok">Invoiced</span>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-size:19px;font-weight:800;margin:4px 0 14px">Choose a view</h2>
+  <div class="personas">
+
+    <a class="persona" href="shop.html">
+      <div class="avatar" style="background:linear-gradient(135deg,#C19977,#7C3A12)">ML</div>
+      <div class="role">The shops</div>
+      <h3>Order like it's Amazon</h3>
+      <p>A Mojo Lakeline manager's portal: live stock, one-tap reorder, order tracking, and a
+      receipt sign-off. Flip to a wholesale customer and the catalog and prices change with it.</p>
+      <span class="go">Open the shop view</span>
+    </a>
+
+    <a class="persona" href="warehouse.html">
+      <div class="avatar" style="background:linear-gradient(135deg,#A9541F,#7C3A12)">D</div>
+      <div class="role">Warehouse · Dominic</div>
+      <h3>The count sheet, digital</h3>
+      <p>Pick lists with big tap targets, receiving against open purchase orders, and cycle counts
+      that reconcile the shelf to the ledger in one tap.</p>
+      <span class="go">Open Dominic's view</span>
+    </a>
+
+    <a class="persona" href="driver.html">
+      <div class="avatar" style="background:linear-gradient(135deg,#0F7B4D,#0A5636)">C</div>
+      <div class="role">Delivery · Cora</div>
+      <h3>Proof at the door</h3>
+      <p>Today's run as ordered stops, a per-stop manifest, and delivered-with-signature capture.
+      Nobody pulls security cameras to settle a dispute again.</p>
+      <span class="go">Open Cora's view</span>
+    </a>
+
+    <a class="persona" href="ops.html">
+      <div class="avatar" style="background:linear-gradient(135deg,#222D3B,#090C0F);color:var(--aqua)">N</div>
+      <div class="role">Operations · Nathan</div>
+      <h3>The command center</h3>
+      <p>Live inventory from the movement ledger, the order queue, purchase orders, roast batches
+      with green-to-roasted yield, and the invoicing sync that retires the Friday export.</p>
+      <span class="go">Open Nathan's view</span>
+    </a>
+
+    <a class="persona" href="owner.html">
+      <div class="avatar" style="background:linear-gradient(135deg,#3E6485,#22405C)">A</div>
+      <div class="role">Owner · Austin</div>
+      <h3>The thirty-second read</h3>
+      <p>Orders and revenue by week, valuation, margin by category, roaster capacity headroom, and
+      an audit trail on any order: who ordered, who picked, who signed.</p>
+      <span class="go">Open Austin's view</span>
+    </a>
+
+  </div>
+
+  <h2 style="font-size:19px;font-weight:800;margin:26px 0 14px">What this model proves</h2>
+  <div class="proofrow" id="proofrow"></div>
+
+  <div class="card" style="margin-top:22px">
+    <div class="card-h"><h2>About this demo</h2></div>
+    <div class="card-b" style="display:flex;gap:26px;flex-wrap:wrap;align-items:center">
+      <p style="font-size:13.5px;color:var(--mute);line-height:1.65;flex:1;min-width:260px;max-width:72ch">Everything here runs in your
+      browser on sample data: invented prices, invented quantities, real workflow. State is saved
+      locally so your actions carry across the five views; the reset button in the black bar
+      returns the demo to its starting point. The production system described in the proposal adds
+      the QuickBooks interface, real logins per person, and your live catalog.</p>
+      <div class="callout" style="flex:1;min-width:260px">Built as a working companion to the Turnkey AI
+      proposal, so every claim in the document is something you can click.</div>
+    </div>
+  </div>
+
+</main>
+<script src="demo.js"></script>
+<script>
+FME.chrome("index.html", "Proof of concept", "A working model of the Forest Moon inventory and ordering system");
+
+// Icons into the hero proof strip
+[["pi1","clipboard"],["pi2","box"],["pi3","truck"],["pi4","check"],["pi5","invoice"]].forEach(function (p) {
+  var el = document.getElementById(p[0]);
+  if (el) el.innerHTML = FME.icon(p[1], 16);
+});
+
+// What this model proves, as proof cards
+var PROOFS = [
+  ["check", "On-hand cannot drift", "Stock is the sum of an append-only movement ledger, never an edited number."],
+  ["flame", "Green becomes roasted", "A roast batch converts raw coffee to finished bags with yield, the step QuickBooks Online has no way to record."],
+  ["invoice", "Nothing fulfilled goes unbilled", "Delivered orders queue for invoicing automatically, no Friday spreadsheet ritual."],
+  ["cart", "Every customer, their own store", "Per-customer catalogs and pricing, so wholesale customers stop ordering by text."]
+];
+document.getElementById("proofrow").innerHTML = PROOFS.map(function (p) {
+  return '<div class="proofcard"><span class="ic">' + FME.icon(p[0], 22) + '</span>' +
+    '<div class="t">' + p[1] + '</div><div class="s">' + p[2] + "</div></div>";
+}).join("");
+</script>
+</body>
+</html>

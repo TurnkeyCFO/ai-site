@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Operations · Forest Moon Operations</title>
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tabs">
+    <button class="on" onclick="tab('board',this)">Order board</button>
+    <button onclick="tab('inv',this)">Inventory</button>
+    <button onclick="tab('roast',this)">Roasting</button>
+    <button onclick="tab('po',this)">Purchase orders</button>
+    <button onclick="tab('bill',this)">Invoicing</button>
+  </div>
+
+  <!-- ORDER BOARD -->
+  <section id="v-board">
+    <div id="alerts"></div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-h"><h2>This week through the warehouse</h2><span class="sub">Every stage is the same movement ledger</span></div>
+      <div class="card-b"><div class="flowstrip" id="flow"></div></div>
+    </div>
+    <div class="kanban" id="kanban"></div>
+    <p class="section-note">Orders move across this board on their own as the shops, Dominic and
+    Cora act. Click any card for its full history.</p>
+  </section>
+
+  <!-- INVENTORY -->
+  <section id="v-inv" style="display:none">
+    <div class="card card--raised runway" style="margin-bottom:18px">
+      <div class="card-h"><h2><span class="ic" id="rwIc"></span>Stock runway, next three weeks</h2>
+        <span class="sub">Every item plotted on the day it runs out at current usage</span>
+        <span style="margin-left:auto"><button class="btn soft" id="rwBtn" onclick="draftRed()">Draft POs for everything in the red zone</button></span>
+      </div>
+      <div class="card-b" id="runway"></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <input class="search" id="invQ" style="max-width:340px" placeholder="Search items or SKUs" oninput="renderInv()">
+      <select id="invF" onchange="renderInv()" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card);font-weight:600;font-size:13.5px">
+        <option value="">All categories</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--mute)">
+        <input type="checkbox" id="invLow" onchange="renderInv()"> Below reorder only
+      </label>
+    </div>
+    <div class="card"><div class="card-b" style="padding-top:10px">
+      <div class="stockhead">
+        <span>Item</span><span>Level vs reorder point</span>
+        <span style="text-align:right">On hand</span>
+        <span class="sparkcell">8-week trend</span>
+        <span class="socell">Cover</span>
+      </div>
+      <div id="invRows"></div>
+    </div></div>
+    <p class="section-note">Sorted by urgency: the least days of cover first. The gray tick on each
+    bar is the reorder point. On-hand is computed live from the movement ledger; there is no
+    editable quantity field anywhere in the system, so the number cannot drift the way a typed one
+    does. Click a row for the item's full movement history.</p>
+  </section>
+
+  <!-- ROASTING -->
+  <section id="v-roast" style="display:none">
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-h"><h2>Roast log, this week</h2><span class="sub">Against a single-shift capacity of about 6,000 lb</span></div>
+      <div class="card-b">
+        <div class="capline" id="capline"></div>
+        <div class="capbar" id="capbar"></div>
+        <p class="section-note" id="capnote"></p>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-h"><h2>Start a roast batch</h2></div>
+        <div class="card-b">
+          <label class="field"><span>Green lot</span><select id="roastLot"></select></label>
+          <label class="field"><span>Green weight in (lb)</span><input id="roastLb" type="number" value="60" min="10"></label>
+          <button class="btn primary" onclick="startRoast()">Start batch</button>
+          <p class="section-note">Starting a batch draws green coffee out of stock. Completing it
+          books roasted bags in, with the shrink recorded as yield. This conversion is the step
+          QuickBooks Online has no transaction for, and it is why the ledger, not QuickBooks, is
+          the source of truth for stock.</p>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-h"><h2>Batches</h2></div>
+          <div class="card-b" id="roastList"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2><span class="ic" id="ydIc"></span>Yield by batch</h2><span class="sub" id="ydSub"></span></div>
+          <div class="card-b"><figure class="chart" id="ydChart"></figure></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PURCHASE ORDERS -->
+  <section id="v-po" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-h"><h2><span class="ic" id="inbIc"></span>What lands when</h2><span class="sub">Inbound purchase orders on the calendar</span></div>
+      <div class="card-b" id="inbound"></div>
+    </div>
+    <div class="card"><div class="card-b" style="padding-top:8px">
+      <table class="tbl" id="poTbl"></table>
+    </div></div>
+    <p class="section-note">A purchase order written here is the order communicated to the vendor
+    and the record Dominic receives against, one act instead of two. Suggested POs appear when an
+    item crosses its reorder point.</p>
+    <div id="suggest" style="margin-top:16px"></div>
+  </section>
+
+  <!-- INVOICING -->
+  <section id="v-bill" style="display:none">
+    <div class="ribbon" id="billRibbon"></div>
+    <div class="callout" style="margin-bottom:16px">Delivered orders queue here and sync to
+    QuickBooks as invoices. This panel replaces the weekly export: filter, download, import,
+    cross-check. Nothing fulfilled can sit unbilled without being visible.</div>
+    <div class="card"><div class="card-b" style="padding-top:8px">
+      <table class="tbl" id="billTbl"></table>
+    </div></div>
+  </section>
+
+</main>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-h"><h3 id="dTitle"></h3><button class="drawer-x" onclick="closeDrawer()">✕</button></div>
+  <div class="drawer-b" id="dBody"></div>
+</div>
+
+<script src="demo.js"></script>
+<script>
+FME.chrome("ops.html", "Operations · Nathan", "One source of truth, live from the movement ledger");
+
+/* ---------- KPIs ---------- */
+function renderKpis() {
+  var S = FME.state();
+  var open = S.orders.filter(function (o) { return ["submitted", "picked", "out"].indexOf(o.status) >= 0; }).length;
+  var below = S.items.filter(function (it) { return FME.stockStatus(it) !== "ok"; }).length;
+  var inbound = S.pos.filter(function (p) { return p.status === "sent" || p.status === "partial"; }).length;
+  var roasting = S.roasts.filter(function (r) { return r.status === "roasting"; }).length;
+  var unbilled = S.orders.filter(function (o) { return o.status === "delivered"; }).length;
+  document.getElementById("kpis").innerHTML =
+    kpi("Open orders", open, "submitted to out for delivery", "brand", "clipboard") +
+    kpi("Below reorder", below, below ? "needs a purchase order" : "all clear", below ? "alert" : "", "alert") +
+    kpi("Inbound POs", inbound, "sent or partially received", "", "box") +
+    kpi("Roasting now", roasting, roasting ? "batch in the drum" : "drum idle", "warm", "flame") +
+    kpi("Fulfilled, unbilled", unbilled, unbilled ? "delivered, not yet billed" : "nothing unbilled", unbilled ? "alert" : "", "invoice");
+}
+function kpi(l, v, d, cls, ic) {
+  return '<div class="kpi ' + (cls || "") + '">' + (ic ? '<span class="ic">' + FME.icon(ic, 18) + "</span>" : "") +
+    '<div class="l">' + l + '</div><div class="v">' + v + '</div><div class="d">' + d + "</div></div>";
+}
+
+/* ---------- ORDER BOARD ---------- */
+var COLS = [["submitted", "Submitted", "clipboard", "Nothing submitted right now"], ["picked", "Picked", "box", "Nothing picked yet today"], ["out", "Out for delivery", "truck", "Nothing on the van"], ["delivered", "Delivered", "check", "Nothing delivered yet today"]];
+var kOpen = { submitted: true };  // mobile accordion: Submitted open by default
+function renderBoard() {
+  var S = FME.state();
+  var mobile = window.matchMedia("(max-width: 720px)").matches;
+  document.getElementById("kanban").innerHTML = COLS.map(function (c) {
+    var rows = S.orders.filter(function (o) { return o.status === c[0] || (c[0] === "delivered" && o.status === "invoiced"); });
+    var closed = mobile && !kOpen[c[0]];
+    var cards = rows.map(function (o) {
+      var cu = FME.customer(o.customer);
+      var extra = o.status === "invoiced" ? ' <span class="chip ok">Invoiced</span>'
+        : o.discrepancy ? ' <span class="chip bad">Flagged</span>' : "";
+      return '<div class="kcard" onclick="openOrder(\'' + o.id + '\')">' +
+        '<div class="t">' + o.id + "<span>" + FME.money(FME.orderTotal(o)) + "</span></div>" +
+        '<div class="s">' + cu.name + " · " + FME.qty(o.lines.length, "line") + " · " + FME.ago(o.ts) + extra + "</div></div>";
+    }).join("");
+    var empty = '<div class="kempty"><span class="ic">' + FME.icon(c[2], 20) + '</span><p>' + c[3] + "</p></div>";
+    return '<div class="kcol' + (closed ? " closed" : "") + '"><h4 onclick="kToggle(\'' + c[0] + '\')">' + c[1] + " <span>" + rows.length + "</span></h4>" +
+      (rows.length ? cards : empty) + "</div>";
+  }).join("");
+}
+function kToggle(key) {
+  if (!window.matchMedia("(max-width: 720px)").matches) return;
+  kOpen[key] = !kOpen[key];
+  renderBoard();
+}
+
+function openOrder(id) {
+  var o = FME.order(id);
+  var cu = FME.customer(o.customer);
+  var lines = o.lines.map(function (l) {
+    var it = FME.item(l.item);
+    var short = l.short ? ' <span class="chip low">' + l.short + " short</span>" : "";
+    return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--mist);font-size:13.5px">' +
+      '<span style="font-weight:700;min-width:30px;text-align:right">' + (l.qty - (l.short || 0)) + "×</span><span style=\"flex:1\">" + it.name + short + "</span></div>";
+  }).join("");
+  var hist = (o.events || []).slice().reverse().map(function (e) {
+    var lbl = FME.STATUS_LABEL[e.status] || (e.status === "receipt_ok" ? "Receipt confirmed" : e.status === "receipt_flag" ? "Discrepancy reported" : e.status);
+    return '<div class="tl-step done"><div class="tl-dot"></div><div><div class="tl-t">' + lbl + "</div>" +
+      '<div class="tl-s">' + FME.dt(e.ts) + " · " + e.by + (e.note ? " · " + e.note : "") + "</div></div></div>";
+  }).join("");
+  var sig = o.sig ? '<div class="divider"></div><div class="mini-note" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Signature on file</div><img src="' + o.sig + '" style="border:1px solid var(--line);border-radius:9px;max-width:100%;background:#fff">' : "";
+  var disc = o.discrepancy ? '<div class="callout warm" style="margin-top:10px">Discrepancy: ' + o.discrepancy + "</div>" : "";
+  document.getElementById("dTitle").textContent = id + " · " + cu.name;
+  document.getElementById("dBody").innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><span class="chip ' + FME.chip(o.status) + '">' + FME.STATUS_LABEL[o.status] + "</span>" +
+    '<span class="chip muted">' + FME.money(FME.orderTotal(o)) + "</span>" +
+    (o.qb ? '<span class="chip ' + FME.chip(o.qb) + '">QuickBooks ' + o.qb + "</span>" : "") + "</div>" +
+    lines + disc +
+    '<div class="divider"></div><div class="mini-note" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">Chain of custody</div>' +
+    '<div class="timeline">' + hist + "</div>" + sig;
+  document.getElementById("scrim").classList.add("on");
+  document.getElementById("drawer").classList.add("on");
+}
+function closeDrawer() {
+  document.getElementById("scrim").classList.remove("on");
+  document.getElementById("drawer").classList.remove("on");
+}
+
+/* ---------- ATTENTION QUEUE ---------- */
+function renderAlerts() {
+  var S = FME.state();
+  var cards = [];
+  S.orders.filter(function (o) { return o.discrepancy; }).forEach(function (o) {
+    cards.push({ tone: "red", t: o.id + " has a reported discrepancy", s: o.discrepancy + " · reported by " + o.placedBy,
+      act: '<button class="btn ghost" onclick="openOrder(\'' + o.id + '\')">Review</button>' });
+  });
+  S.orders.filter(function (o) { return o.doorIssue && o.status === "out"; }).forEach(function (o) {
+    cards.push({ tone: "red", t: o.id + " hit a problem at the door", s: o.doorIssue + " · " + FME.customer(o.customer).name + " · flagged by Cora",
+      act: '<button class="btn ghost" onclick="openOrder(\'' + o.id + '\')">Review</button>' });
+  });
+  S.orders.filter(function (o) { return o.status === "cancelled"; }).slice(0, 2).forEach(function (o) {
+    cards.push({ tone: "red", t: o.id + " had nothing to deliver", s: "Every line was short. The shop was notified and nothing was billed. · " + FME.customer(o.customer).name,
+      act: '<button class="btn ghost" onclick="openOrder(\'' + o.id + '\')">Review</button>' });
+  });
+  S.items.forEach(function (it) {
+    var st = FME.stockStatus(it);
+    if (st === "out") cards.push({ tone: "red", t: it.name + " is out of stock", s: "Blocked from shop ordering until received. " + FME.qty(Math.round(FME.usage(it.id) * 7), it.unit) + " of weekly demand is waiting on it.",
+      act: '<button class="btn ghost" onclick="openItem(\'' + it.id + '\')">Ledger</button>' });
+  });
+  S.orders.filter(function (o) { return o.status === "delivered"; }).forEach(function (o) {
+    cards.push({ tone: "amber", t: o.id + " is fulfilled, unbilled", s: FME.customer(o.customer).name + " · " + FME.money(FME.orderTotal(o)) + " · signed by " + (o.signedBy || "-"),
+      act: '<button class="btn soft" onclick="bill(\'' + o.id + '\')">Sync invoice</button>' });
+  });
+  S.items.forEach(function (it) {
+    if (FME.stockStatus(it) === "low") cards.push({ tone: "amber", t: it.name + " is below its reorder point", s: FME.num(FME.onHand(it.id)) + " " + it.unit + " on hand · about " + FME.cover(it.id) + " days of cover left",
+      act: '<button class="btn ghost" onclick="openItem(\'' + it.id + '\')">Ledger</button>' });
+  });
+  var stale = S.orders.filter(function (o) { return o.status === "submitted" && Date.now() - o.ts > 12 * 3600e3; });
+  stale.forEach(function (o) {
+    cards.push({ tone: "blue", t: o.id + " has been waiting to pick for " + FME.ago(o.ts).replace(" ago", ""), s: FME.customer(o.customer).name + " · " + FME.qty(o.lines.length, "line"),
+      act: '<button class="btn ghost" onclick="openOrder(\'' + o.id + '\')">Open</button>' });
+  });
+  var TONE_IC = { red: "alert", amber: "invoice", blue: "clipboard" };
+  document.getElementById("alerts").innerHTML = cards.length ?
+    '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:11px">' +
+      '<h2 style="font-size:16.5px;font-weight:800">What needs you today</h2>' +
+      '<span class="mini-note">raised by the system, not by memory</span></div>' +
+    '<div class="attn">' + cards.slice(0, 6).map(function (c) {
+      return '<div class="attn-card card--raised ' + c.tone + '">' +
+        '<span style="color:var(--' + (c.tone === "red" ? "bad" : c.tone === "amber" ? "low" : "blue") + ');flex:none;display:inline-flex">' + FME.icon(TONE_IC[c.tone], 19) + "</span>" +
+        '<div><div class="t">' + c.t + '</div><div class="s">' + c.s + '</div></div><div class="act">' + c.act + "</div></div>";
+    }).join("") + "</div>" : "";
+}
+
+/* ---------- FLOW STRIP (every number computes from the ledger) ----------
+   Each node carries a fill bar: this week against a typical full week for that
+   stage, so the five different units still read proportionally at a glance. */
+var FLOW_SCALE = { received: 3000, roasted: 600, picked: 30, delivered: 12, web: 24 };
+function renderFlow() {
+  var f = FME.weekFlow();
+  var nodes = [
+    { l: "Received", v: FME.num(f.receivedLb), s: "lb green in on POs", pct: f.receivedLb / FLOW_SCALE.received },
+    { l: "Roasted", v: FME.num(f.roastedOutBags), s: FME.pl(f.roastedOutBags, "bag") + " out of the drum", hot: true, pct: f.roastedOutBags / FLOW_SCALE.roasted },
+    { l: "Picked", v: f.pickedLines, s: "order " + FME.pl(f.pickedLines, "line") + " by Dominic", pct: f.pickedLines / FLOW_SCALE.picked },
+    { l: "Delivered", v: f.deliveredOrders, s: "signed " + FME.pl(f.deliveredOrders, "stop") + " by Cora", pct: f.deliveredOrders / FLOW_SCALE.delivered },
+    { l: "Web sales", v: f.webSales, s: FME.pl(f.webSales, "unit") + " shipped from Square", pct: f.webSales / FLOW_SCALE.web }
+  ];
+  document.getElementById("flow").innerHTML = nodes.map(function (n, i) {
+    var w = Math.min(100, Math.round(n.pct * 100));
+    return (i ? '<div class="flowarrow">→</div>' : "") +
+      '<div class="flownode' + (n.hot ? " hot" : "") + '"><div class="fl">' + n.l + '</div><div class="fv">' + n.v + '</div><div class="fs">' + n.s + "</div>" +
+      '<div class="fbar"><i style="width:' + w + '%"></i></div></div>';
+  }).join("");
+}
+
+/* ---------- STOCK RUNWAY BOARD ---------- */
+document.getElementById("rwIc").innerHTML = FME.icon("trend", 17);
+function renderRunway() {
+  var S = FME.state();
+  var DAYS = 21, W = 1150, top = 26, laneH = 27, padL = 8, padR = 8;
+  var plotW = W - padL - padR;
+  var rows = S.items.map(function (it) {
+    return { it: it, cov: FME.cover(it.id), st: FME.stockStatus(it) };
+  }).filter(function (r) { return r.cov <= DAYS; }).sort(function (a, b) { return a.cov - b.cov; });
+  var beyond = S.items.length - rows.length;
+  // Greedy lane assignment so pills never collide.
+  var lanes = [];
+  rows.forEach(function (r) {
+    r.x = padL + (r.cov / DAYS) * plotW;
+    r.w = Math.min(170, r.it.sn.length * 6.4 + 46);
+    var placed = false;
+    for (var li = 0; li < lanes.length; li++) {
+      if (r.x - r.w / 2 > lanes[li] + 6) { r.lane = li; lanes[li] = r.x + r.w / 2; placed = true; break; }
+    }
+    if (!placed) { r.lane = lanes.length; lanes.push(r.x + r.w / 2); }
+  });
+  var H = top + Math.max(2, lanes.length) * laneH + 34;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Projected stockout date for every item over the next three weeks">'];
+  // red danger band over the first 7 days
+  o.push('<rect x="' + padL + '" y="' + (top - 12) + '" width="' + (7 / DAYS * plotW) + '" height="' + (H - top - 10) + '" fill="#FBE9E7" opacity=".55" rx="6"/>');
+  // day gridlines + labels every 3.5 days
+  for (var d = 0; d <= DAYS; d += 7) {
+    var x = padL + d / DAYS * plotW;
+    o.push('<line x1="' + x + '" y1="' + (top - 12) + '" x2="' + x + '" y2="' + (H - 22) + '" stroke="#E3E9F1" stroke-width="1"/>');
+    var dd = new Date(Date.now() + d * 86400e3);
+    var edge = x > W - 60;
+    o.push('<text x="' + (edge ? x - 4 : x + 4) + '" y="' + (H - 8) + '" font-size="10" fill="#8B99AC" font-weight="700"' + (edge ? ' text-anchor="end"' : "") + ' font-family="Plus Jakarta Sans">' +
+      (d === 0 ? "today" : dd.toLocaleDateString("en-US", { month: "short", day: "numeric" })) + "</text>");
+  }
+  // today line
+  o.push('<line x1="' + padL + '" y1="' + (top - 14) + '" x2="' + padL + '" y2="' + (H - 22) + '" stroke="#B3261E" stroke-width="2"/>');
+  rows.forEach(function (r) {
+    var y = top + r.lane * laneH;
+    var col = r.cov <= 3 ? "#B3261E" : r.cov <= 7 ? "#D97706" : "#0F7B4D";
+    var bg = r.cov <= 3 ? "#FBE9E7" : r.cov <= 7 ? "#FBF1DC" : "#E3F4EC";
+    var x0 = Math.max(padL, r.x - r.w / 2), x1 = Math.min(W - padR, x0 + r.w);
+    x0 = x1 - r.w;
+    if (x0 < padL) { x0 = padL; x1 = x0 + r.w; }
+    o.push('<rect x="' + x0.toFixed(0) + '" y="' + y + '" width="' + r.w.toFixed(0) + '" height="21" rx="10.5" fill="' + bg + '" stroke="' + col + '" stroke-width="1.2"/>');
+    o.push('<circle cx="' + (x0 + 11) + '" cy="' + (y + 10.5) + '" r="3.4" fill="' + col + '"/>');
+    o.push('<text x="' + (x0 + 20) + '" y="' + (y + 14.5) + '" font-size="10.5" font-weight="800" fill="#121A26" font-family="Plus Jakarta Sans">' +
+      r.it.sn + " · " + (r.st === "out" ? "out" : r.cov + "d") + "</text>");
+  });
+  o.push("</svg>");
+  document.getElementById("runway").innerHTML = o.join("") +
+    '<div class="runway-legend">' +
+    '<span><span class="sw" style="background:#B3261E"></span>3 days or less</span>' +
+    '<span><span class="sw" style="background:#D97706"></span>Within a week</span>' +
+    '<span><span class="sw" style="background:#0F7B4D"></span>A week to three</span>' +
+    (beyond ? '<span style="color:var(--faint)">' + beyond + " more items have over three weeks of cover</span>" : "") +
+    "</div>";
+  var red = rows.filter(function (r) { return r.cov <= 7 && r.it.cat !== "Roasted coffee" && r.it.cat !== "Cold brew"; }).length;
+  var btn = document.getElementById("rwBtn");
+  btn.style.display = red ? "" : "none";
+  btn.textContent = "Draft POs for everything in the red zone (" + red + ")";
+}
+function draftRed() {
+  var made = FME.draftRedZonePos(7, "Nathan");
+  if (!made.length) { FME.toast("Everything in the red zone is already covered by an open or draft PO."); return; }
+  FME.toast(made.length === 1
+    ? made[0] + " drafted. Review it on the Purchase orders tab, then send it to the vendor."
+    : made.join(" and ") + " drafted, one per vendor. Review them on the Purchase orders tab.");
+  refresh();
+}
+
+/* ---------- STOCK INTELLIGENCE ---------- */
+function renderInv() {
+  var q = (document.getElementById("invQ").value || "").toLowerCase();
+  var f = document.getElementById("invF").value;
+  var lowOnly = document.getElementById("invLow").checked;
+  var S = FME.state();
+  var rows = S.items.filter(function (it) {
+    if (f && it.cat !== f) return false;
+    if (lowOnly && FME.stockStatus(it) === "ok") return false;
+    return !q || (it.name + " " + it.id).toLowerCase().indexOf(q) >= 0;
+  }).sort(function (a, b) { return FME.cover(a.id) - FME.cover(b.id); });
+  document.getElementById("invRows").innerHTML = rows.map(function (it) {
+    var st = FME.stockStatus(it);
+    var cov = FME.cover(it.id);
+    var covCol = st === "out" ? "var(--bad)" : cov <= 7 ? "#D97706" : "var(--ink)";
+    var so = st === "out" ? "out now"
+      : cov <= 14 ? "runs out " + FME.stockoutDate(it.id).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "healthy";
+    var sparkCol = st === "ok" ? "#C19977" : st === "low" ? "#D97706" : "#B3261E";
+    return '<div class="stockrow" onclick="openItem(\'' + it.id + '\')">' +
+      '<div class="n">' + it.name + "<small>" + it.cat + " · bin " + it.bin + "</small></div>" +
+      FME.fillbar(it.id) +
+      '<div class="oh">' + FME.num(FME.onHand(it.id)) + "<small>" + it.unit + " · reorder " + it.reorder + "</small></div>" +
+      '<div class="sparkcell">' + FME.spark(FME.trend(it.id), 96, 26, sparkCol) + "</div>" +
+      '<div class="socell coverchip"><b style="color:' + covCol + '">' + (st === "out" ? "0" : cov) + ' days</b><span>' + so + "</span></div>" +
+    "</div>";
+  }).join("");
+}
+function openItem(id) {
+  var it = FME.item(id);
+  var led = FME.itemLedger(id);
+  document.getElementById("dTitle").textContent = it.name;
+  document.getElementById("dBody").innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">' +
+      '<span class="chip navy">' + FME.num(FME.onHand(id)) + " " + it.unit + " on hand</span>" +
+      '<span class="chip muted">Bin ' + it.bin + '</span><span class="chip muted">Reorder at ' + it.reorder + "</span></div>" +
+    '<div class="mini-note" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">Movement ledger, newest first</div>' +
+    '<div class="led">' + led.map(function (m) {
+      var cls = m.qty > 0 ? "pos" : m.qty < 0 ? "neg" : "";
+      var sign = m.qty > 0 ? "+" : "";
+      return '<div class="led-row"><span class="t">' + FME.dt(m.ts) + "</span>" +
+        '<span>' + (FME.MV_LABEL[m.type] || m.type) + ' <span class="mini-note">' + m.ref + " · " + m.by + "</span>" + (m.note ? '<div class="mini-note">' + m.note + "</div>" : "") + "</span>" +
+        '<span class="q ' + cls + '">' + (m.qty === 0 ? "·" : sign + FME.num(m.qty)) + "</span>" +
+        '<span class="b">' + FME.num(m.bal) + "</span></div>";
+    }).join("") + "</div>" +
+    '<p class="section-note">Append-only. A mistake is corrected by a new adjustment, never by editing history, so every number can be explained a year later.</p>';
+  document.getElementById("scrim").classList.add("on");
+  document.getElementById("drawer").classList.add("on");
+}
+
+/* ---------- ROASTING ---------- */
+function renderRoast() {
+  var S = FME.state();
+  var lb = FME.roastedLbThisWeek();
+  var head = FME.roastHeadroomLb();
+  var pct = Math.min(100, lb / FME.SHIFT_CAP_LB * 100);
+  document.getElementById("capline").innerHTML =
+    "<b>" + FME.num(lb) + " lb roasted this week · " + Math.round(pct) + " percent of one shift</b>" +
+    "<span>capacity ~" + FME.num(FME.SHIFT_CAP_LB) + " lb</span>";
+  document.getElementById("capbar").innerHTML =
+    '<div class="capbar-fill" style="width:' + pct.toFixed(1) + '%"></div>';
+  document.getElementById("capnote").textContent =
+    "The drum runs about 15 to 20 hours against a 40-hour shift. The headroom this week is roughly " +
+    FME.num(Math.round(head / 50) * 50) + " lb of roasting capacity that is already paid for, which is the growth case: " +
+    "every new wholesale roastery customer is filled from hours the roaster already has.";
+
+  // Rebuild the lot selector WITHOUT losing what Nathan selected (the 5s refresh used to reset it).
+  var sel = document.getElementById("roastLot");
+  var keep = sel.value;
+  var lots = S.items.filter(function (it) { return it.cat === "Green coffee"; });
+  if (document.activeElement !== sel) {
+    sel.innerHTML = lots.map(function (it) {
+      return '<option value="' + it.id + '">' + it.name + " (" + FME.num(FME.onHand(it.id)) + " lb on hand)</option>";
+    }).join("");
+    if (keep && lots.some(function (it) { return it.id === keep; })) sel.value = keep;
+  }
+
+  renderYield();
+
+  document.getElementById("roastList").innerHTML = S.roasts.slice(0, 6).map(function (r) {
+    var lot = FME.item(r.lot);
+    var outIt = r.out ? FME.item(r.out) : null;
+    var body = r.status === "roasting"
+      ? '<div class="s">' + r.greenLb + " lb of " + lot.sn + " in the drum · started " + FME.ago(r.ts) + "</div>" +
+        '<button class="btn soft" style="margin-top:8px" onclick="finishRoast(\'' + r.id + "'," + r.greenLb + ')">Complete batch</button>'
+      : '<div class="s">' + r.greenLb + " lb green in → " + r.roastedLb + " lb out as " + (outIt ? outIt.sn : "House Blend 5 lb") + " · " + FME.qty(r.bags, "bag") + " · yield " + r.yield + " percent</div>";
+    return '<div class="kcard" style="cursor:default"><div class="t">' + r.id +
+      ' <span class="chip ' + FME.chip(r.status) + '">' + (r.status === "roasting" ? "Roasting" : "Complete") + "</span></div>" + body + "</div>";
+  }).join("");
+}
+/* Yield by batch: bars are green lb in, the line is yield percent against a dashed 84 target. */
+document.getElementById("ydIc").innerHTML = FME.icon("flame", 17);
+function renderYield() {
+  var done = FME.state().roasts.filter(function (r) { return r.status === "complete"; })
+    .sort(function (a, b) { return a.ts - b.ts; }).slice(-8);
+  if (!done.length) { document.getElementById("ydChart").innerHTML = '<p class="mini-note">No completed batches yet.</p>'; return; }
+  var W = 520, H = 190, top = 20, bot = 28, left = 34, right = 8;
+  var plotW = W - left - right, plotH = H - top - bot;
+  var mxLb = Math.max.apply(null, done.map(function (r) { return r.greenLb; })) * 1.15;
+  var slot = plotW / done.length, bw = Math.min(44, slot - 14);
+  var TARGET = 84, yMin = 74, yMax = 92;
+  function yFor(pct) { return top + (1 - (pct - yMin) / (yMax - yMin)) * plotH; }
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Green pounds in and yield percent for the last eight roast batches">'];
+  // target line
+  var ty = yFor(TARGET);
+  o.push('<line x1="' + left + '" y1="' + ty.toFixed(1) + '" x2="' + (W - right) + '" y2="' + ty.toFixed(1) + '" stroke="#8B99AC" stroke-width="1.4" stroke-dasharray="5 4"/>');
+  var linePts = [];
+  done.forEach(function (r, i) {
+    var cx = left + i * slot + slot / 2;
+    var bh = (r.greenLb / mxLb) * plotH;
+    o.push('<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (H - bot - bh).toFixed(1) + '" width="' + bw + '" height="' + bh.toFixed(1) + '" rx="4" fill="#E9D5C4"/>');
+    o.push('<text x="' + cx.toFixed(1) + '" y="' + (H - bot - bh - 4).toFixed(1) + '" font-size="8" fill="#A9541F" font-weight="700" text-anchor="middle" font-family="Plus Jakarta Sans">' + r.greenLb + " lb</text>");
+    o.push('<text x="' + cx.toFixed(1) + '" y="' + (H - 9) + '" font-size="8.4" fill="#8B99AC" font-weight="700" text-anchor="middle" font-family="Plus Jakarta Sans">' + r.id.replace("RB-", "") + "</text>");
+    linePts.push([cx, yFor(Math.max(yMin, Math.min(yMax, r.yield)))]);
+  });
+  var d = linePts.map(function (p, i) { return (i ? "L " : "M ") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+  o.push('<path d="' + d + '" fill="none" stroke="#A9541F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>');
+  linePts.forEach(function (p, i) {
+    o.push('<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.4" fill="#A9541F"/>');
+    o.push('<text x="' + p[0].toFixed(1) + '" y="' + (p[1] - 7).toFixed(1) + '" font-size="8.4" fill="#7C3A12" font-weight="800" text-anchor="middle" font-family="Plus Jakarta Sans">' + done[i].yield + "</text>");
+  });
+  o.push("</svg>");
+  document.getElementById("ydChart").innerHTML = o.join("");
+  var avg = Math.round(done.reduce(function (a, r) { return a + r.yield; }, 0) / done.length * 10) / 10;
+  document.getElementById("ydSub").textContent = "Average yield " + avg + " percent across the last " + FME.qty(done.length, "batch") +
+    (avg >= TARGET - 1 ? " · on target" : " · " + (Math.round((TARGET - avg) * 10) / 10) + " points under target") +
+    " · dashed line is the 84 percent target";
+}
+
+function startRoast() {
+  var lot = document.getElementById("roastLot").value;
+  var lb = parseInt(document.getElementById("roastLb").value, 10);
+  if (!lb || lb < 10) { FME.toast("Enter the green weight going in."); return; }
+  if (lb > FME.onHand(lot)) { FME.toast("Not enough green coffee in that lot."); return; }
+  var id = FME.startRoast(lot, lb, "Nathan");
+  FME.toast("Batch " + id + " started. " + lb + " lb of green drawn from stock.");
+  renderRoast(); renderKpis(); renderInv();
+}
+function finishRoast(id, greenLb) {
+  var est = Math.round(greenLb * 0.833);
+  var skuOpts = Object.keys(FME.ROAST_OUT).map(function (k) {
+    return '<option value="' + k + '"' + (k === "RST-HB-5LB" ? " selected" : "") + ">" + FME.ROAST_OUT[k].label + "</option>";
+  }).join("");
+  FME.openSheet("Complete " + id,
+    '<p class="sheetnote"><b>' + FME.num(greenLb) + " lb</b> of green went into the drum. Roasting only ever loses weight, so the roasted weight out must be at most that.</p>" +
+    '<label class="field"><span>Roasted weight out of the drum (lb)</span>' +
+    '<input id="rstLb" type="number" inputmode="numeric" min="1" max="' + greenLb + '" value="' + est + '" oninput="roastPreview(' + greenLb + ')"></label>' +
+    '<label class="field"><span>Booked in as</span>' +
+    '<select id="rstSku" onchange="roastPreview(' + greenLb + ')">' + skuOpts + "</select></label>" +
+    '<div id="rstPrev"></div>',
+    '<button class="btn primary big" id="rstBtn" onclick="doFinishRoast(\'' + id + "'," + greenLb + ')">Complete batch</button>');
+  roastPreview(greenLb);
+}
+function roastPreview(greenLb) {
+  var lb = parseInt(document.getElementById("rstLb").value, 10);
+  var sku = document.getElementById("rstSku").value;
+  var prev = document.getElementById("rstPrev");
+  var btn = document.getElementById("rstBtn");
+  if (!lb || lb < 1) { prev.innerHTML = '<div class="sheetwarn">Enter the roasted weight.</div>'; btn.disabled = true; return; }
+  if (lb > greenLb) { prev.innerHTML = '<div class="sheetwarn">More came out than went in? The drum does not add weight. Enter ' + greenLb + " lb or less.</div>"; btn.disabled = true; return; }
+  btn.disabled = false;
+  var y = Math.round(lb / greenLb * 1000) / 10;
+  var units = Math.floor(lb / FME.ROAST_OUT[sku].lbPer);
+  prev.innerHTML = '<p class="sheetnote">Yield <b>' + y + " percent</b> · books <b>" + FME.qty(units, "bag") + "</b> of " + FME.ROAST_OUT[sku].label + " into stock.</p>";
+}
+function doFinishRoast(id, greenLb) {
+  var lb = parseInt(document.getElementById("rstLb").value, 10);
+  var sku = document.getElementById("rstSku").value;
+  if (!lb || lb < 1 || lb > greenLb) return;
+  var r = FME.completeRoast(id, lb, sku, "Nathan");
+  FME.closeSheet();
+  FME.toast("Batch " + id + " complete: " + FME.qty(r.bags, "bag") + " of " + FME.ROAST_OUT[r.out].label + " booked in at " + r.yield + " percent yield.");
+  renderRoast(); renderKpis(); renderInv();
+}
+
+/* ---------- POs ---------- */
+document.getElementById("inbIc").innerHTML = FME.icon("truck", 17);
+function renderInbound() {
+  var S = FME.state();
+  var open = S.pos.filter(function (p) { return p.status !== "received"; });
+  if (!open.length) { document.getElementById("inbound").innerHTML = '<p class="mini-note">Nothing inbound.</p>'; return; }
+  var DAYS = 10, W = 1150, top = 24, laneH = 30, padL = 8, padR = 8;
+  var plotW = W - padL - padR, t0 = Date.now() - 2 * 86400e3;
+  var H = top + open.length * laneH + 30;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Inbound purchase orders across the next ten days">'];
+  for (var d = 0; d <= DAYS; d += 2) {
+    var x = padL + d / DAYS * plotW;
+    o.push('<line x1="' + x + '" y1="' + (top - 10) + '" x2="' + x + '" y2="' + (H - 20) + '" stroke="#E3E9F1"/>');
+    var dd = new Date(t0 + d * 86400e3);
+    var edge = x > W - 60;
+    o.push('<text x="' + (edge ? x - 4 : x + 4) + '" y="' + (H - 6) + '" font-size="9.5" fill="#8B99AC" font-weight="700"' + (edge ? ' text-anchor="end"' : "") + ' font-family="Plus Jakarta Sans">' +
+      dd.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</text>");
+  }
+  var todayX = padL + 2 / DAYS * plotW;
+  o.push('<line x1="' + todayX + '" y1="' + (top - 12) + '" x2="' + todayX + '" y2="' + (H - 20) + '" stroke="#B3261E" stroke-width="2"/>');
+  o.push('<text x="' + (todayX + 5) + '" y="' + (top - 14) + '" font-size="9" fill="#B3261E" font-weight="800" font-family="Plus Jakarta Sans">today</text>');
+  open.forEach(function (po, i) {
+    var y = top + i * laneH;
+    var isDraft = po.status === "draft";
+    var eta = po.eta || (Date.now() + 6 * 86400e3);
+    var ex = padL + Math.min(DAYS, Math.max(0, (eta - t0) / 86400e3)) / DAYS * plotW;
+    var startX = todayX - (po.status === "draft" ? 0 : 1.2 / DAYS * plotW);
+    var col = isDraft ? "#8B99AC" : eta < Date.now() ? "#D97706" : "#C19977";
+    // Label sits ABOVE the line so it can never strike through its own bar.
+    o.push('<line x1="' + Math.min(startX, ex).toFixed(0) + '" y1="' + (y + 19) + '" x2="' + ex.toFixed(0) + '" y2="' + (y + 19) + '" stroke="' + col + '" stroke-width="3" stroke-linecap="round"' + (isDraft ? ' stroke-dasharray="2 5"' : "") + "/>");
+    o.push('<circle cx="' + ex.toFixed(0) + '" cy="' + (y + 19) + '" r="5.5" fill="' + col + '"/>');
+    var lbl = po.id + " · " + po.vendor + (isDraft ? " · draft, not sent" : eta < Date.now() ? " · arrived, receiving open" : " · lands " + new Date(eta).toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+    var anchor = ex > W * 0.62 ? "end" : "start";
+    o.push('<text x="' + (ex + (anchor === "end" ? 6 : 10)).toFixed(0) + '" y="' + (y + 8) + '" font-size="10" font-weight="700" fill="#121A26" text-anchor="' + anchor + '" font-family="Plus Jakarta Sans">' + lbl + "</text>");
+  });
+  o.push("</svg>");
+  document.getElementById("inbound").innerHTML = o.join("");
+}
+
+function renderPO() {
+  var S = FME.state();
+  renderInbound();
+  document.getElementById("poTbl").innerHTML =
+    "<tr><th>PO · Vendor</th><th>Received</th><th class=\"num\">Value</th><th>Status</th></tr>" +
+    S.pos.map(function (po) {
+      var val = po.lines.reduce(function (a, l) { return a + FME.item(l.item).cost * l.qty; }, 0);
+      var totQ = po.lines.reduce(function (a, l) { return a + l.qty; }, 0);
+      var gotQ = po.lines.reduce(function (a, l) { return a + Math.min(l.received || 0, l.qty); }, 0);
+      var pct = totQ ? Math.round(gotQ / totQ * 100) : 0;
+      var barCol = po.status === "draft" ? "var(--faint)" : pct >= 100 ? "var(--ok)" : "var(--blue)";
+      return "<tr><td class=\"strong\">" + po.id + '<div class="dim">' + po.vendor + "</div></td>" +
+        '<td style="min-width:150px"><div class="fillbar-track" style="max-width:170px"><div class="fillbar-fill" style="width:' + pct + "%;background:" + barCol + '"></div></div>' +
+        '<div class="mini-note" style="margin-top:4px">' + (po.status === "draft" ? "not sent yet" : pct + " percent received") + "</div></td>" +
+        '<td class="num">' + FME.money(val) + "</td>" +
+        '<td><span class="chip ' + FME.chip(po.status) + '">' + po.status.charAt(0).toUpperCase() + po.status.slice(1) + "</span></td></tr>";
+    }).join("");
+
+  var need = S.items.filter(function (it) { return FME.stockStatus(it) !== "ok" && it.cat !== "Green coffee"; });
+  document.getElementById("suggest").innerHTML = need.length ?
+    '<div class="card"><div class="card-h"><h2>Suggested purchase orders</h2><span class="sub">Raised automatically at the reorder point</span></div><div class="card-b"><table class="tbl">' +
+    need.map(function (it) {
+      var qty = Math.max(it.reorder * 2 - FME.onHand(it.id), it.reorder);
+      return "<tr><td class=\"strong\">" + it.name + '</td><td class="dim">On hand ' + FME.num(FME.onHand(it.id)) + ", reorder at " + it.reorder + '</td><td class="num">Suggest ' + FME.num(Math.round(qty)) + " " + it.unit + "</td></tr>";
+    }).join("") + "</table></div></div>" : "";
+}
+
+/* ---------- INVOICING ---------- */
+function renderBill() {
+  var S = FME.state();
+  var rows = S.orders.filter(function (o) { return o.status === "delivered" || o.status === "invoiced"; });
+
+  // Unbilled-value ribbon with an aging strip.
+  var unb = S.orders.filter(function (o) { return o.status === "delivered"; });
+  var val = unb.reduce(function (a, o) { return a + FME.orderTotal(o); }, 0);
+  var ages = unb.map(function (o) {
+    var del = (o.events || []).filter(function (e) { return e.status === "delivered"; })[0];
+    return del ? (Date.now() - del.ts) / 86400e3 : 0;
+  });
+  var b1 = ages.filter(function (a) { return a <= 3; }).length,
+      b2 = ages.filter(function (a) { return a > 3 && a <= 7; }).length,
+      b3 = ages.filter(function (a) { return a > 7; }).length;
+  var mxB = Math.max(1, b1, b2, b3);
+  var oldest = ages.length ? Math.round(Math.max.apply(null, ages)) : 0;
+  function bkt(n, label, col) {
+    return '<div class="bkt"><i><b style="width:' + Math.round(n / mxB * 100) + "%;background:" + col + '"></b></i><span>' + label + " · " + n + "</span></div>";
+  }
+  document.getElementById("billRibbon").innerHTML =
+    '<div><div class="rv">' + FME.money(val) + '</div><div class="rl">fulfilled and unbilled right now' +
+    (unb.length ? " · oldest " + FME.qty(oldest, "day") : "") + "</div></div>" +
+    '<div class="aging">' + bkt(b1, "0-3 days", "#E8B35B") + bkt(b2, "4-7 days", "#D97706") + bkt(b3, "8+ days", "#FF7B6B") + "</div>";
+  document.getElementById("billTbl").innerHTML =
+    "<tr><th>Order</th><th>Customer</th><th>Delivered</th><th class=\"num\">Amount</th><th>QuickBooks</th><th></th></tr>" +
+    (rows.length ? rows.map(function (o) {
+      var cu = FME.customer(o.customer);
+      var del = (o.events || []).filter(function (e) { return e.status === "delivered"; })[0];
+      var act = o.status === "delivered"
+        ? '<button class="btn soft" style="padding:7px 13px" onclick="bill(\'' + o.id + '\')">Sync invoice</button>'
+        : '<span class="mini-note">Invoice created</span>';
+      return "<tr><td class=\"strong\">" + o.id + "</td><td>" + cu.name + "</td>" +
+        "<td class=\"dim\">" + (del ? FME.dt(del.ts) : "-") + (o.signedBy ? " · signed " + o.signedBy : "") + "</td>" +
+        '<td class="num strong">' + FME.money(FME.orderTotal(o)) + "</td>" +
+        '<td><span class="chip ' + FME.chip(o.qb || "queued") + '">' + (o.qb === "synced" ? "Synced" : "Queued") + "</span></td>" +
+        "<td>" + act + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="dim">Nothing delivered yet in this session. Run an order through the shop, warehouse and driver views.</td></tr>');
+}
+function bill(id) {
+  FME.invoiceOrder(id);
+  FME.toast(id + " invoiced. In production this is the QuickBooks sync; short items were already excluded.");
+  renderBill(); renderBoard(); renderKpis(); renderAlerts();
+}
+
+/* ---------- tabs + boot ---------- */
+function tab(name, btn) {
+  document.querySelectorAll(".tabs button").forEach(function (b) { b.classList.remove("on"); });
+  btn.classList.add("on");
+  ["board", "inv", "roast", "po", "bill"].forEach(function (v) {
+    document.getElementById("v-" + v).style.display = v === name ? "" : "none";
+  });
+  refresh();
+}
+function refresh() {
+  renderKpis(); renderBoard(); renderAlerts(); renderFlow(); renderRunway(); renderInv(); renderRoast(); renderPO(); renderBill();
+}
+var cats = {};
+FME.state().items.forEach(function (it) { cats[it.cat] = 1; });
+document.getElementById("invF").innerHTML = '<option value="">All categories</option>' +
+  Object.keys(cats).map(function (c) { return "<option>" + c + "</option>"; }).join("");
+refresh();
+setInterval(function () { if (!document.getElementById("drawer").classList.contains("on") && !FME.sheetOpen()) refresh(); }, 5000);
+</script>
+</body>
+</html>

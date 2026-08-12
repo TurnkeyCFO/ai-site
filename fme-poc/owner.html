@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Owner Dashboard · Forest Moon Operations</title>
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<main>
+
+  <div class="kpis kpis--exec" id="kpis"></div>
+
+  <div class="card card--raised" style="margin-bottom:18px">
+    <div class="card-h"><h2><span class="ic" id="capIc"></span>The roaster is the growth engine, and most of it is idle</h2>
+      <span class="sub">Live from the roast log</span></div>
+    <div class="card-b">
+      <figure class="chart" id="chCap"></figure>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;margin-top:8px">
+        <p style="font-size:13px;color:var(--mute);line-height:1.6;flex:1;min-width:260px;max-width:72ch" id="gaugeBlurb"></p>
+        <div class="callout warm" id="capCallout" style="flex:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-h"><h2><span class="ic" id="revIc"></span>Weekly wholesale revenue</h2><span class="sub">Sample data · last 8 weeks</span></div>
+      <div class="card-b"><figure class="chart" id="chRev"></figure></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2><span class="ic" id="mgIc"></span>Where the margin actually is</h2><span class="sub">Sample data · sorted by margin dollars, not percent</span></div>
+      <div class="card-b"><figure class="chart" id="chMargin"></figure></div>
+    </div>
+  </div>
+
+  <div class="split" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-h"><h2><span class="ic" id="shIc"></span>Orders by customer, last 4 weeks</h2><span class="sub">Sample data · all eleven customers, busiest first</span></div>
+      <div class="card-b"><figure class="chart" id="chShops"></figure></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2><span class="ic" id="swIc"></span>Stock health, tightest first</h2><span class="sub">Live · days of cover from the ledger</span></div>
+      <div class="card-b" id="stockWall"></div>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-h"><h2>Customer billing</h2><span class="sub">Live · Mojo shops are intercompany, Hill Country is wholesale</span></div>
+      <div class="card-b">
+        <table class="tbl" id="icTbl"></table>
+        <p class="section-note">Every delivered order queues for invoicing on its own. The gap this
+        closes: fulfilled orders that never became invoices, found during the August review. Under
+        this model an unbilled order is a visible alert, not a discovery months later.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Chain of custody</h2><span class="sub">Pick any order</span></div>
+      <div class="card-b">
+        <label class="field"><span>Order</span><select id="auditPick" onchange="renderAudit()"></select></label>
+        <div id="auditBody"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="demo.js"></script>
+<script>
+FME.chrome("owner.html", "Owner · Austin", "The thirty-second read on the whole operation");
+
+var INK = "#121A26", MUTE = "#5A6B80", FAINT = "#8B99AC", LINE = "#E3E9F1",
+    BLUE = "#C19977", BLUED = "#7C3A12", RAMP = ["#F0DFC0", "#D8B78E", "#C19977", "#C19977", "#C19977", "#7C3A12"];
+
+function t(x, y, s, size, fill, weight, anchor) {
+  return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 9) + '" fill="' + (fill || INK) +
+    '" font-weight="' + (weight || 600) + '" text-anchor="' + (anchor || "start") + '" font-family="Plus Jakarta Sans, sans-serif">' + s + "</text>";
+}
+
+/* KPIs (live counts + sample money). Valuation carries its own sparkline inside the tile. */
+function renderKpis() {
+  var S = FME.state();
+  var open = S.orders.filter(function (o) { return ["submitted", "picked", "out"].indexOf(o.status) >= 0; }).length;
+  var unb = S.orders.filter(function (o) { return o.status === "delivered"; }).length;
+  var val = S.items.reduce(function (a, it) { return a + Math.max(0, FME.onHand(it.id)) * it.cost; }, 0);
+  var util = Math.round(FME.roastedLbThisWeek() / FME.SHIFT_CAP_LB * 100);
+  // Sparkline in the tile is the live valuation, walked back as ratios of today.
+  var RATIOS = [0.93, 0.96, 0.92, 0.97, 1.04, 1.0, 1.02];
+  var valPts = RATIOS.map(function (r) { return val * r; }).concat([val]);
+  document.getElementById("kpis").innerHTML =
+    '<div class="kpi brand"><div class="l">Revenue, week</div><div class="v">$41,180<span class="delta">+9.5%</span></div><div class="d">sample · vs the 8-week average</div></div>' +
+    '<div class="kpi"><div class="l">Inventory at cost</div><div class="v">' + FME.money(Math.round(val)).replace(".00", "") + '</div>' +
+      '<div style="margin-top:5px">' + FME.spark(valPts, 120, 26, "#C19977") + '</div><div class="d">live from the ledger · 8 weeks</div></div>' +
+    '<div class="kpi"><div class="l">Open orders</div><div class="v">' + open + '</div><div class="d">live from this session</div></div>' +
+    '<div class="kpi ' + (unb ? "alert" : "") + '"><div class="l">Fulfilled, unbilled</div><div class="v">' + unb + '</div><div class="d">' + (unb ? "queued for invoicing" : "nothing outstanding") + '</div></div>' +
+    '<div class="kpi warm"><div class="l">Roaster utilization</div><div class="v">' + util + '%</div><div class="d">of one 40-hour shift · live from the roast log</div></div>';
+}
+
+/* Weekly revenue bars, with the 8-week average as a dashed reference line */
+(function () {
+  var weeks = [
+    ["Jun 22", 33400], ["Jun 29", 35100], ["Jul 6", 38900], ["Jul 13", 36200],
+    ["Jul 20", 37800], ["Jul 27", 39600], ["Aug 3", 38800], ["Aug 10", 41180]
+  ];
+  var avg = weeks.reduce(function (a, w) { return a + w[1]; }, 0) / weeks.length;
+  var W = 520, H = 200, top = 30, bot = 26, left = 8;
+  var bw = (W - left) / weeks.length - 12;
+  var mx = 45000;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Weekly wholesale revenue, eight weeks, against the eight week average">'];
+  var ay = H - bot - (avg / mx) * (H - top - bot);
+  weeks.forEach(function (w, i) {
+    var x = left + i * ((W - left) / weeks.length) + 6;
+    var h = (w[1] / mx) * (H - top - bot);
+    var y = H - bot - h;
+    var last = i === weeks.length - 1;
+    o.push('<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="4" fill="' + (last ? BLUE : "#EAD5B4") + '"/>');
+    var lbl = "$" + Math.round(w[1] / 100) / 10 + "k" + (last ? " · +" + (Math.round((w[1] / avg - 1) * 1000) / 10) + "% vs avg" : "");
+    o.push(t(last ? W - 2 : x + bw / 2, y - 7, lbl, 8.6, last ? BLUED : MUTE, last ? 800 : 600, last ? "end" : "middle"));
+    o.push(t(x + bw / 2, H - 8, w[0], 8, FAINT, 600, "middle"));
+  });
+  o.push('<line x1="' + left + '" y1="' + ay.toFixed(1) + '" x2="' + W + '" y2="' + ay.toFixed(1) + '" stroke="#5A6B80" stroke-width="1.4" stroke-dasharray="5 4"/>');
+  // Average legend lives in the clear top-left corner, off the line itself.
+  o.push('<line x1="' + left + '" y1="11" x2="' + (left + 20) + '" y2="11" stroke="#5A6B80" stroke-width="1.4" stroke-dasharray="5 4"/>');
+  o.push(t(left + 26, 14, "8-week average $" + Math.round(avg / 100) / 10 + "k", 8, MUTE, 700));
+  o.push("</svg>");
+  document.getElementById("chRev").innerHTML = o.join("");
+})();
+
+/* Margin: revenue bar with contribution-margin fill, sorted by margin DOLLARS */
+(function () {
+  var rows = [
+    ["Roasted coffee", 18400, 46], ["Cold brew", 6200, 41], ["Cups and lids", 6900, 24],
+    ["Frozen goods", 5800, 26], ["Syrups", 3900, 33]
+  ].map(function (r) { return { cat: r[0], rev: r[1], pct: r[2], m: Math.round(r[1] * r[2] / 100) }; })
+   .sort(function (a, b) { return b.m - a.m; });
+  var W = 520, left = 118, rH = 44, H = rows.length * rH + 6;
+  var mxRev = Math.max.apply(null, rows.map(function (r) { return r.rev; })) * 1.06;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Revenue and contribution margin by category, sorted by margin dollars">'];
+  rows.forEach(function (r, i) {
+    var y = i * rH + 5;
+    var w = (r.rev / mxRev) * (W - left - 8);
+    var mw = w * r.pct / 100;
+    o.push(t(left - 10, y + 14, r.cat, 9.2, INK, 700, "end"));
+    o.push('<rect x="' + left + '" y="' + y + '" width="' + w.toFixed(1) + '" height="20" rx="4" fill="#EFE3D2"/>');
+    o.push('<rect x="' + left + '" y="' + y + '" width="' + mw.toFixed(1) + '" height="20" rx="4" fill="' + (r.cat === "Roasted coffee" ? "#A9541F" : BLUE) + '"/>');
+    o.push(t(left, y + 34, "$" + r.rev.toLocaleString("en-US") + " rev · $" + r.m.toLocaleString("en-US") + " margin · " + r.pct + "%", 8.4, MUTE, 600));
+  });
+  o.push("</svg>");
+  document.getElementById("chMargin").innerHTML = o.join("") ;
+})();
+
+/* Roaster capacity: the full-width sales argument, computed from the live roast log */
+function renderCap() {
+  var lb = FME.roastedLbThisWeek();
+  var cap = FME.SHIFT_CAP_LB;
+  var head = Math.max(0, cap - lb);
+  var pct = Math.min(1, lb / cap);
+  var W = 1100, H = 96, top = 30, barH = 34, left = 8, right = 8;
+  var plotW = W - left - right;
+  var usedW = plotW * pct;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Roaster capacity: pounds roasted this week against one full shift">'];
+  o.push('<defs><pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">' +
+    '<rect width="8" height="8" fill="#F8ECE3"/><line x1="0" y1="0" x2="0" y2="8" stroke="#E0C4AC" stroke-width="2.5"/></pattern></defs>');
+  o.push('<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + barH + '" rx="9" fill="url(#hatch)"/>');
+  o.push('<rect x="' + left + '" y="' + top + '" width="' + Math.max(6, usedW).toFixed(1) + '" height="' + barH + '" rx="9" fill="#A9541F"/>');
+  o.push(t(left + 12, top + 22, FME.num(lb) + " lb roasted this week · " + Math.round(pct * 100) + "% of one shift", 11, "#FFFFFF", 800));
+  var hx = left + usedW + (plotW - usedW) / 2;
+  o.push(t(hx, top + 22, FME.num(head) + " lb of headroom, already paid for", 11, "#7C3A12", 800, "middle"));
+  o.push(t(left, top - 9, "0 lb", 8.5, FAINT, 700));
+  o.push(t(W - right, top - 9, "single-shift capacity ~" + FME.num(cap) + " lb", 8.5, FAINT, 700, "end"));
+  o.push("</svg>");
+  document.getElementById("chCap").innerHTML = o.join("");
+  var avgShop = 480; // avg lb per wholesale account per week at current volumes
+  document.getElementById("capCallout").textContent = "Headroom ≈ " + Math.floor(head / avgShop) + " more wholesale accounts at current average volume";
+  document.getElementById("gaugeBlurb").innerHTML = "About " + FME.num(Math.round(lb / 50) * 50) + " lb a week roasted against roughly " +
+    FME.num(cap) + " lb of single-shift capacity. Every pound of that headroom is already paid for. " +
+    "What blocks selling it is the ordering system, and this platform gives each wholesale customer their own catalog and pricing on day one.";
+}
+
+/* Orders by customer: one sorted horizontal bar chart, trend arrow per row */
+(function () {
+  var shops = [
+    ["Mojo Lakeline", [9, 11, 10, 12]], ["Mojo Liberty Hill", [8, 9, 9, 10]], ["Mojo Burnet", [7, 8, 9, 9]],
+    ["Mojo Kingsland", [6, 6, 7, 7]], ["Mojo Cove", [5, 6, 6, 6]], ["Mojo Georgetown", [7, 7, 8, 8]],
+    ["Mojo Marble Falls", [5, 5, 6, 6]], ["Mojo New Hope", [6, 7, 6, 7]], ["Mojo Mayfield Ranch", [4, 5, 5, 6]],
+    ["Mojo Bertram", [3, 4, 4, 4]], ["Hill Country Coffee Co.", [0, 1, 2, 3]]
+  ].map(function (s) {
+    var tot = s[1].reduce(function (a, b) { return a + b; }, 0);
+    var slope = (s[1][2] + s[1][3]) - (s[1][0] + s[1][1]); // back half vs front half of the month
+    return { name: s[0], tot: tot, slope: slope, wholesale: s[0].indexOf("Mojo") !== 0 };
+  }).sort(function (a, b) { return b.tot - a.tot; });
+  var W = 520, left = 148, rH = 27, H = shops.length * rH + 8;
+  var mx = Math.max.apply(null, shops.map(function (s) { return s.tot; })) * 1.12;
+  var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Total orders per customer over four weeks, sorted busiest first">'];
+  shops.forEach(function (s, i) {
+    var y = i * rH + 5;
+    var w = (s.tot / mx) * (W - left - 64);
+    o.push(t(left - 10, y + 13, s.name, 8.8, s.wholesale ? "#A9541F" : INK, s.wholesale ? 800 : 700, "end"));
+    o.push('<rect x="' + left + '" y="' + y + '" width="' + w.toFixed(1) + '" height="17" rx="4" fill="' + (s.wholesale ? "#D98E5F" : "#D8B78E") + '"/>');
+    var arrow = s.slope > 0 ? "▲" : s.slope < 0 ? "▼" : "·";
+    var acol = s.slope > 0 ? "#0F7B4D" : s.slope < 0 ? "#B3261E" : FAINT;
+    o.push(t(left + w + 8, y + 13, s.tot + " ", 9.2, INK, 800));
+    o.push(t(left + w + 30, y + 13, arrow + (s.slope ? " " + (s.slope > 0 ? "+" : "") + s.slope : ""), 8, acol, 800));
+  });
+  o.push("</svg>");
+  document.getElementById("chShops").innerHTML = o.join("");
+})();
+
+/* Customer billing table (live) */
+function renderIC() {
+  var S = FME.state();
+  var rows = S.orders.slice(0, 7);
+  document.getElementById("icTbl").innerHTML =
+    "<tr><th>Order</th><th>Customer</th><th class=\"num\">Amount</th><th>Status</th><th>QuickBooks</th></tr>" +
+    rows.map(function (o) {
+      var cu = FME.customer(o.customer);
+      var kind = cu.type === "wholesale" ? '<span class="chip roast">Wholesale</span>' : FME.mojoMark(14) + '<span class="chip muted">Intercompany</span>';
+      var qb = o.status === "invoiced" ? '<span class="chip ok">Invoice synced</span>'
+        : o.status === "delivered" ? '<span class="chip low">Queued</span>'
+        : '<span class="chip muted">Not yet due</span>';
+      return "<tr><td class=\"strong\">" + o.id + "</td><td class=\"dim\">" + cu.name + " " + kind + "</td>" +
+        '<td class="num">' + FME.money(FME.orderTotal(o)) + "</td>" +
+        '<td><span class="chip ' + FME.chip(o.status) + '">' + FME.STATUS_LABEL[o.status] + "</span></td><td>" + qb + "</td></tr>";
+    }).join("");
+}
+
+/* Audit trail */
+function renderAuditPick() {
+  var sel = document.getElementById("auditPick");
+  var keep = sel.value;
+  var opts = FME.state().orders.slice(0, 10);
+  if (document.activeElement !== sel) {
+    sel.innerHTML = opts.map(function (o) {
+      return '<option value="' + o.id + '">' + o.id + " · " + FME.customer(o.customer).name + "</option>";
+    }).join("");
+    if (keep && opts.some(function (o) { return o.id === keep; })) sel.value = keep;
+  }
+  renderAudit();
+}
+function renderAudit() {
+  var o = FME.order(document.getElementById("auditPick").value);
+  if (!o) return;
+  var hist = (o.events || []).map(function (e) {
+    var lbl = FME.STATUS_LABEL[e.status] || (e.status === "receipt_ok" ? "Receipt confirmed" : e.status === "receipt_flag" ? "Discrepancy reported" : e.status);
+    return '<div class="tl-step done"><div class="tl-dot"></div><div><div class="tl-t">' + lbl + "</div>" +
+      '<div class="tl-s">' + FME.dt(e.ts) + " · " + e.by + (e.note ? " · " + e.note : "") + "</div></div></div>";
+  }).join("");
+  document.getElementById("auditBody").innerHTML = '<div class="timeline">' + hist + "</div>" +
+    (o.sig ? '<div class="divider"></div><div class="mini-note" style="margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Signature on file</div><img src="' + o.sig + '" style="border:1px solid var(--line);border-radius:9px;max-width:100%;background:#fff">' : "");
+}
+
+/* Stock health wall (live) */
+function renderStockWall() {
+  var items = FME.state().items.slice().sort(function (a, b) { return FME.cover(a.id) - FME.cover(b.id); }).slice(0, 8);
+  document.getElementById("stockWall").innerHTML = items.map(function (it) {
+    var st = FME.stockStatus(it);
+    var cov = FME.cover(it.id);
+    var col = st === "out" ? "var(--bad)" : cov <= 7 ? "#D97706" : "var(--mute)";
+    return '<div style="display:grid;grid-template-columns:minmax(120px,1fr) minmax(110px,1.1fr) 74px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--mist)">' +
+      '<div style="font-weight:700;font-size:12.5px;line-height:1.3">' + it.sn + "</div>" +
+      FME.fillbar(it.id) +
+      '<div style="text-align:right;font-weight:800;font-size:12.5px;color:' + col + '">' + (st === "out" ? "out" : cov + " days") + "</div>" +
+    "</div>";
+  }).join("") + '<p class="section-note">Same ledger Nathan runs the warehouse on, read as days of cover. The gray tick is each item\'s reorder point.</p>';
+}
+function refresh() {
+  renderKpis(); renderCap(); renderStockWall(); renderIC(); renderAuditPick();
+}
+[["capIc","flame"],["revIc","trend"],["mgIc","invoice"],["shIc","cart"],["swIc","box"]].forEach(function (p) {
+  var el = document.getElementById(p[0]);
+  if (el) el.innerHTML = FME.icon(p[1], 17);
+});
+refresh();
+setInterval(function () { if (!FME.sheetOpen()) refresh(); }, 6000);
+</script>
+</body>
+</html>
